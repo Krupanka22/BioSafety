@@ -187,7 +187,7 @@ router.get('/insights', auth, (req, res) => {
       insights.push({
         title: 'Weather Impact',
         description: `Current conditions (${wx?.condition}, ${wx?.humidity}% humidity) are elevating biosafety risk by ${Math.round(avgWeather)}%`,
-        icon: '⛅',
+        icon: 'CLOUD',
         severity: avgWeather > 70 ? 'high' : 'medium',
       });
     }
@@ -200,7 +200,7 @@ router.get('/insights', auth, (req, res) => {
       insights.push({
         title: 'Air Quality Warning (OpenWeatherMap)',
         description: `Live AQI ${maxAQI}${pm?.pm25 != null ? `, PM2.5 ${pm.pm25} µg/m³` : ''} — elevated respiratory risk`,
-        icon: '🌫️',
+        icon: 'AIR',
         severity: maxAQI > 200 ? 'critical' : 'high',
       });
     }
@@ -216,7 +216,7 @@ router.get('/insights', auth, (req, res) => {
       insights.push({
         title: 'High Crowd Density (OpenStreetMap)',
         description: `Geospatial crowd score ${Math.round(avgCrowd)}/100 — ${transportTotal} transport nodes in monitored hexes`,
-        icon: '👥',
+        icon: 'POPULATION',
         severity: avgCrowd > 60 ? 'high' : 'medium',
       });
     }
@@ -226,7 +226,7 @@ router.get('/insights', auth, (req, res) => {
       insights.push({
         title: 'Critical Zones Active',
         description: `${overview.criticalCount} zone(s) at CRITICAL biosafety risk — immediate attention required`,
-        icon: '🚨',
+        icon: 'ALERT',
         severity: 'critical',
       });
     }
@@ -237,7 +237,7 @@ router.get('/insights', auth, (req, res) => {
       insights.push({
         title: 'Hygiene NLP Analysis',
         description: `Hygiene scores from free stack: ${hygieneSources.join(', ')} (HuggingFace + OSM + Nominatim)`,
-        icon: '🧼',
+        icon: 'SANITATION',
         severity: 'info',
       });
     }
@@ -245,7 +245,7 @@ router.get('/insights', auth, (req, res) => {
     insights.push({
       title: 'Overall Status',
       description: `Monitoring ${overview.totalHexes || 0} H3 zones (~1 km²) — avg biosafety: ${overview.avgScore || 0}`,
-      icon: '📊',
+      icon: 'SYSTEM',
       severity: 'info',
     });
 

@@ -24,7 +24,7 @@ const ProtectedRoute = () => {
         <Navbar />
 
         {/* Page Content */}
-        <main className="flex-1 overflow-auto bg-gradient-to-br from-white via-gray-50 to-white">
+        <main className="flex-1 overflow-auto bg-slate-50">
           <div className="p-6 md:p-8">
             <Outlet />
           </div>

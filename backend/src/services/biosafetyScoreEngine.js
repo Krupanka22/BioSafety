@@ -1,11 +1,10 @@
-import { fetchOpenWeatherForHex, normaliseAqiForRisk } from './weatherService.js';
-import { fetchCrowdForHexIndependent } from './crowdDensityService.js';
-import { crowdSnapshotToOsmData } from './crowdDensityService.js';
-import { fetchHygieneScoreForLocation } from './hygieneService.js';
-import { getHexCenter } from './h3GridEngine.js';
-import { computeAdaptiveScore } from './scoreWeighting.js';
-import { buildLocationReasoning } from './locationReasoning.js';
 import logger from '../utils/logger.js';
+import { crowdSnapshotToOsmData, fetchCrowdForHex, fetchCrowdGridSnapshot } from './crowdDensityService.js';
+import { getHexCenter } from './h3GridEngine.js';
+import { fetchHygieneScoreForLocation } from './hygieneService.js';
+import { buildLocationReasoning } from './locationReasoning.js';
+import { computeAdaptiveScore } from './scoreWeighting.js';
+import { fetchOpenWeatherForHex, normaliseAqiForRisk } from './weatherService.js';
 
 /**
  * Biosafety Score Engine — Each H3 cell uses its own coordinates for
@@ -15,8 +14,8 @@ import logger from '../utils/logger.js';
 const scoreHistory = new Map();
 const MAX_HISTORY = 1440;
 
-const OWM_HEX_DELAY_MS = parseInt(process.env.OWM_HEX_DELAY_MS, 10) || 80;
-const CROWD_HEX_DELAY_MS = parseInt(process.env.CROWD_HEX_DELAY_MS, 10) || 100;
+const OWM_HEX_DELAY_MS = parseInt(process.env.OWM_HEX_DELAY_MS, 10) || 500; // Increased from 80ms to prevent rate limiting
+const CROWD_HEX_DELAY_MS = parseInt(process.env.CROWD_HEX_DELAY_MS, 10) || 600; // Increased from 100ms to prevent rate limiting
 
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
@@ -58,7 +57,7 @@ export async function computeScoreForHex(h3Index, _context = {}) {
   const { lat, lng } = center;
 
   const owmData = await fetchOpenWeatherForHex(h3Index, lat, lng);
-  const crowdHex = await fetchCrowdForHexIndependent(h3Index, lat, lng);
+  const crowdHex = await fetchCrowdForHex(h3Index, lat, lng, _context.crowdSnapshot);
   const osmData = crowdSnapshotToOsmData(
     { perHex: { [h3Index]: crowdHex }, amenities: [] },
     h3Index
@@ -184,10 +183,12 @@ export async function computeScoresForGrid(hexList) {
   const results = [];
   logger.info(`Scoring ${hexList.length} H3 cells independently (per-hex OWM + OSM)`);
 
+  const gridSnapshot = await fetchCrowdGridSnapshot(hexList);
+
   for (let i = 0; i < hexList.length; i++) {
     const hex = hexList[i];
     try {
-      const score = await computeScoreForHex(hex.h3Index);
+      const score = await computeScoreForHex(hex.h3Index, { crowdSnapshot: gridSnapshot });
       results.push(score);
     } catch (err) {
       logger.error(`Score computation failed for ${hex.h3Index}: ${err.message}`);

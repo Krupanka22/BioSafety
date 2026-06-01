@@ -1,6 +1,6 @@
-import { getGridForLocation, getRingsForRadiusKm, getMonitorRadiusKm } from './h3GridEngine.js';
-import { computeScoresForGrid, getOverviewFromScores, generateAlerts } from './biosafetyScoreEngine.js';
 import logger from '../utils/logger.js';
+import { computeScoresForGrid, generateAlerts, getOverviewFromScores } from './biosafetyScoreEngine.js';
+import { getGridForLocation, getMonitorRadiusKm, getRingsForRadiusKm } from './h3GridEngine.js';
 
 /**
  * Real-Time Data Pipeline — Orchestrates periodic polling, score computation,
@@ -12,6 +12,7 @@ let io = null;
 let currentGrid = [];
 let currentScores = [];
 let previousScores = [];
+const computationLocks = new Map(); // "lat:lng" -> Promise
 let allAlerts = [];        // Rolling alert buffer (max 200)
 let monitoredLocations = new Map(); // socketId → {lat, lng}
 let isRunning = false;
@@ -21,8 +22,8 @@ const MAX_ALERTS = 200;
 const DEFAULT_LAT = parseFloat(process.env.DEFAULT_LAT) || 12.9716;
 const DEFAULT_LNG = parseFloat(process.env.DEFAULT_LNG) || 77.5946;
 const DEFAULT_RINGS = parseInt(process.env.H3_RING_SIZE, 10) || getRingsForRadiusKm(getMonitorRadiusKm());
-/** Poll interval in ms (default 30s for near-real-time updates) */
-const POLL_INTERVAL_MS = parseInt(process.env.POLL_INTERVAL_MS, 10) || 30_000;
+/** Poll interval in ms (default 15 min to prevent API rate limiting and data fetching failures) */
+const POLL_INTERVAL_MS = parseInt(process.env.POLL_INTERVAL_MS, 10) || 900_000;
 
 /**
  * Initialize the pipeline with a Socket.IO instance.
@@ -339,6 +340,46 @@ export function getCurrentGrid() {
   return currentGrid;
 }
 
+/**
+ * Gets scores for a location, computing and caching them globally if missing.
+ * Uses a promise lock to prevent parallel computations from multiple REST endpoints.
+ */
+export async function getOrComputeScores(lat, lng) {
+  const grid = getGridForLocation(lat, lng, DEFAULT_RINGS);
+  const validH3 = new Set(grid.map(g => g.h3Index));
+  
+  // Try to find in cache first
+  const existingScores = currentScores.filter(s => validH3.has(s.h3Index));
+  if (existingScores.length > 0) return existingScores;
+
+  // Need to compute. Check if already computing.
+  const lockKey = `${lat.toFixed(2)}:${lng.toFixed(2)}`;
+  if (computationLocks.has(lockKey)) {
+    return computationLocks.get(lockKey);
+  }
+
+  // Start computation
+  const computePromise = (async () => {
+    try {
+      const newScores = await computeScoresForGrid(grid);
+      // Merge into global state
+      const merged = [...currentScores];
+      for (const ns of newScores) {
+        const idx = merged.findIndex(s => s.h3Index === ns.h3Index);
+        if (idx >= 0) merged[idx] = ns;
+        else merged.push(ns);
+      }
+      currentScores = merged;
+      return newScores;
+    } finally {
+      computationLocks.delete(lockKey);
+    }
+  })();
+
+  computationLocks.set(lockKey, computePromise);
+  return computePromise;
+}
+
 export default {
   initPipeline,
   startPipeline,
@@ -347,4 +388,5 @@ export default {
   getCurrentOverview,
   getAlerts,
   getCurrentGrid,
+  getOrComputeScores,
 };

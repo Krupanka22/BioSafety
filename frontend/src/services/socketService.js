@@ -58,6 +58,14 @@ export function connectSocket() {
   socket.on('biosafety:crowd-update', (data) => triggerHandler('crowd-update', data));
   socket.on('biosafety:hex-detail', (data) => triggerHandler('hex-detail', data));
 
+  // Independent location monitoring events
+  socket.on('location-analysis-independent', (data) => triggerHandler('location-analysis-independent', data));
+  socket.on('5km-monitoring-start', (data) => triggerHandler('5km-monitoring-start', data));
+  socket.on('independent-location-analysis', (data) => triggerHandler('independent-location-analysis', data));
+  socket.on('independent-location-update', (data) => triggerHandler('independent-location-update', data));
+  socket.on('location-detail', (data) => triggerHandler('location-detail', data));
+  socket.on('5km-heatmap-update', (data) => triggerHandler('5km-heatmap-update', data));
+
   return socket;
 }
 
@@ -127,6 +135,42 @@ function triggerHandler(event, data) {
  */
 export function isConnected() {
   return socket?.connected || false;
+}
+
+/**
+ * Analyze a specific location independently with complete environmental intelligence
+ */
+export function analyzeLocationIndependently(lat, lng, label) {
+  if (socket?.connected) {
+    socket.emit('analyze-location-independent', { lat, lng, label });
+  }
+}
+
+/**
+ * Start 5km radius monitoring with independent location analysis
+ */
+export function start5kmMonitoring(centerLat, centerLng, radiusKm = 5, includeGridCells = true) {
+  if (socket?.connected) {
+    socket.emit('start-5km-monitoring', { centerLat, centerLng, radiusKm, includeGridCells });
+  }
+}
+
+/**
+ * Get detailed environmental intelligence for a specific location
+ */
+export function getLocationDetail(lat, lng, includeFactorWiseReasoning = true) {
+  if (socket?.connected) {
+    socket.emit('get-location-detail', { lat, lng, includeFactorWiseReasoning });
+  }
+}
+
+/**
+ * Stop 5km radius monitoring
+ */
+export function stop5kmMonitoring() {
+  if (socket?.connected) {
+    socket.emit('stop-5km-monitoring', {});
+  }
 }
 
 export default {

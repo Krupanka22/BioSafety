@@ -2,7 +2,7 @@ import express from 'express';
 import { auth } from '../middleware/auth.js';
 import { getGridForRadius } from '../services/h3GridEngine.js';
 import { computeScoresForGrid, getOverviewFromScores, getScoreHistory } from '../services/biosafetyScoreEngine.js';
-import { getCurrentScores, getCurrentOverview, getAlerts as getPipelineAlerts } from '../services/realtimePipeline.js';
+import { getCurrentScores, getCurrentOverview, getAlerts as getPipelineAlerts, getOrComputeScores } from '../services/realtimePipeline.js';
 
 const router = express.Router();
 
@@ -18,16 +18,10 @@ router.get('/risk-overview', auth, async (req, res) => {
   try {
     const lat = parseFloat(req.query.lat) || DEFAULT_LAT;
     const lng = parseFloat(req.query.lng) || DEFAULT_LNG;
-
-    // Try pipeline cache first
-    let overview = getCurrentOverview();
-
-    // If pipeline hasn't run yet, compute on demand
-    if (!overview || overview.totalHexes === 0) {
-      const grid = getGridForRadius(lat, lng);
-      const scores = await computeScoresForGrid(grid);
-      overview = getOverviewFromScores(scores);
-    }
+    
+    // getOrComputeScores handles cache check and grid calculation automatically
+    const scores = await getOrComputeScores(lat, lng);
+    const overview = getOverviewFromScores(scores);
 
     res.json({
       level: overview.riskLevel,
@@ -51,7 +45,11 @@ router.get('/risk-overview', auth, async (req, res) => {
 // Get exposure score — computed from live AQI + weather
 router.get('/exposure-score', auth, async (req, res) => {
   try {
-    const scores = getCurrentScores();
+    const lat = parseFloat(req.query.lat) || DEFAULT_LAT;
+    const lng = parseFloat(req.query.lng) || DEFAULT_LNG;
+    
+    const scores = await getOrComputeScores(lat, lng);
+
     if (scores.length === 0) {
       return res.json({ score: 0, category: 'UNKNOWN', change: '0%', historicalData: [] });
     }
@@ -95,9 +93,13 @@ router.get('/alerts', auth, (req, res) => {
 });
 
 // Get trends — computed from historical score data
-router.get('/trends', auth, (req, res) => {
+router.get('/trends', auth, async (req, res) => {
   try {
-    const scores = getCurrentScores();
+    const lat = parseFloat(req.query.lat) || DEFAULT_LAT;
+    const lng = parseFloat(req.query.lng) || DEFAULT_LNG;
+    
+    const scores = await getOrComputeScores(lat, lng);
+
     if (scores.length === 0) {
       return res.json({
         week: { change: '0%', trend: 'stable' },
@@ -131,10 +133,14 @@ router.get('/trends', auth, (req, res) => {
 });
 
 // Get score history + live factor breakdown — for chart and KPI cards
-router.get('/score-history', auth, (req, res) => {
+router.get('/score-history', auth, async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 60; // last N data points
-    const scores = getCurrentScores();
+    
+    const lat = parseFloat(req.query.lat) || DEFAULT_LAT;
+    const lng = parseFloat(req.query.lng) || DEFAULT_LNG;
+    
+    const scores = await getOrComputeScores(lat, lng);
 
     // Aggregate score history across all hexes by timestamp
     const allHistories = [];

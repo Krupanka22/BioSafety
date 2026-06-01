@@ -1,15 +1,12 @@
-import { motion } from 'framer-motion';
 import { useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useDashboardStore } from '../context/stores';
 import { useLiveBiosafety } from '../hooks/useLiveBiosafety';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 /**
- * Dashboard Page — Live biosafety monitoring hub
+ * Dashboard Page — Enterprise Biosafety Monitoring Hub
  */
 const Dashboard = () => {
-  const navigate = useNavigate();
   const {
     fetchDashboardData, riskData, exposureScore, alerts, trends, loading,
     biosafetyScore, aqiData, weatherData, hygieneScore, crowdDensity,
@@ -23,344 +20,263 @@ const Dashboard = () => {
     initSocketListeners();
     fetchDashboardData(lat, lng);
 
-    const interval = setInterval(() => fetchDashboardData(lat, lng), 30000);
-
     return () => {
       cleanupSocketListeners();
-      clearInterval(interval);
     };
   }, [lat, lng]);
 
-  // Time since last update
   const timeSinceUpdate = useMemo(() => {
-    if (!lastUpdated) return 'Waiting for data...';
+    if (!lastUpdated) return 'WAITING FOR TELEMETRY';
     const seconds = Math.round((Date.now() - new Date(lastUpdated).getTime()) / 1000);
-    if (seconds < 5) return 'Just now';
-    if (seconds < 60) return `${seconds}s ago`;
-    return `${Math.round(seconds / 60)}m ago`;
+    if (seconds < 5) return 'SYNCED JUST NOW';
+    if (seconds < 60) return `SYNCED ${seconds}s AGO`;
+    return `SYNCED ${Math.round(seconds / 60)}m AGO`;
   }, [lastUpdated]);
 
-  // Chart data from real score history (populated by socket events + REST)
   const chartData = useMemo(() => {
-    if (scoreHistory && scoreHistory.length > 0) {
-      return scoreHistory;
-    }
-    // No data yet — show empty state
+    if (scoreHistory && scoreHistory.length > 0) return scoreHistory;
     return [];
   }, [scoreHistory]);
 
-  // Risk level color
   const getRiskColor = (level) => {
     const colors = {
-      CRITICAL: 'text-red-600',
-      HIGH: 'text-orange-500',
-      MODERATE: 'text-yellow-600',
-      LOW: 'text-green-600',
+      CRITICAL: 'text-rose-600',
+      HIGH: 'text-orange-600',
+      MODERATE: 'text-amber-600',
+      LOW: 'text-emerald-600',
     };
-    return colors[level] || 'text-gray-600';
+    return colors[level] || 'text-slate-600';
   };
 
-  const getRiskBg = (level) => {
-    const colors = {
-      CRITICAL: 'bg-red-500',
-      HIGH: 'bg-orange-500',
-      MODERATE: 'bg-yellow-500',
-      LOW: 'bg-green-500',
+  const getBadgeClass = (level) => {
+    const classes = {
+      CRITICAL: 'badge-critical',
+      HIGH: 'badge-high',
+      MODERATE: 'badge-moderate',
+      LOW: 'badge-safe',
     };
-    return colors[level] || 'bg-gray-400';
+    return classes[level] || 'badge-safe';
   };
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: 0.1, delayChildren: 0.2 },
-    },
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
-  };
+  const currentLevel = riskData?.level || 'LOW';
 
   return (
-    <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-8">
-      {/* Header with live status */}
-      <motion.div variants={itemVariants} className="flex items-center justify-between flex-wrap gap-4">
+    <div className="space-y-6 max-w-[1600px] mx-auto">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-4 border-b border-slate-200">
         <div>
-          <h1 className="text-4xl font-bold text-black mb-2">Risk Overview</h1>
-          <p className="text-gray-600">Real-time biosafety monitoring and predictive analytics</p>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Environmental Dashboard</h1>
+          <p className="text-sm text-slate-500 mt-1 uppercase tracking-wider">Coordinates: {lat?.toFixed(5)}, {lng?.toFixed(5)}</p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className={`w-2.5 h-2.5 rounded-full ${
-            connectionStatus === 'connected' ? 'bg-green-500 animate-pulse' :
-            connectionStatus === 'reconnecting' ? 'bg-yellow-500 animate-pulse' :
-            'bg-red-500'
-          }`}></div>
-          <span className="text-xs text-gray-500">
-            {connectionStatus === 'connected' ? `Live • Updated ${timeSinceUpdate}` :
-             connectionStatus === 'reconnecting' ? 'Reconnecting...' : 'Offline'}
-          </span>
-        </div>
-      </motion.div>
-
-      {/* KPI Cards — Live Data */}
-      <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Biosafety Score */}
-        <motion.div whileHover={{ scale: 1.02, y: -5 }} className="card group cursor-pointer">
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex-1">
-              <p className="text-gray-600 text-sm font-medium mb-1">Biosafety Score</p>
-              <p className={`text-4xl font-bold ${getRiskColor(riskData?.level)}`}>
-                {riskData?.score ?? biosafetyScore ?? '—'}
-              </p>
-            </div>
-            <span className="text-3xl group-hover:scale-110 transition-transform">🛡️</span>
+        <div className="flex flex-col items-end">
+          <div className="flex items-center gap-2">
+            <span className={`w-2 h-2 rounded-full ${
+              connectionStatus === 'connected' ? 'bg-emerald-500 animate-pulse' :
+              connectionStatus === 'reconnecting' ? 'bg-amber-500 animate-pulse' : 'bg-rose-500'
+            }`}></span>
+            <span className="text-xs font-bold text-slate-700 uppercase">
+              {connectionStatus === 'connected' ? 'TELEMETRY ACTIVE' :
+               connectionStatus === 'reconnecting' ? 'RECONNECTING...' : 'OFFLINE'}
+            </span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
+          <span className="text-[10px] text-slate-400 font-mono mt-1">{timeSinceUpdate}</span>
+        </div>
+      </div>
+
+      {/* Primary Telemetry Row */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Risk Score */}
+        <div className="card border-t-4 border-t-slate-800">
+          <div className="card-header">
+            <span className="metric-label">System Risk Score</span>
+            <span className={`badge ${getBadgeClass(currentLevel)} uppercase`}>{currentLevel}</span>
+          </div>
+          <div className="flex items-end justify-between">
+            <p className={`text-4xl font-black ${getRiskColor(currentLevel)} tracking-tighter`}>
+              {riskData?.score ?? biosafetyScore ?? '--'}
+            </p>
+            <p className="text-xs text-slate-500 font-mono mb-1">Scale: 0-100</p>
+          </div>
+          <div className="w-full bg-slate-100 rounded-sm h-1.5 mt-4 overflow-hidden">
             <div
-              className={`h-2 rounded-full transition-all duration-1000 ${getRiskBg(riskData?.level)}`}
+              className={`h-full transition-all duration-1000 ${
+                currentLevel === 'CRITICAL' ? 'bg-rose-500' :
+                currentLevel === 'HIGH' ? 'bg-orange-500' :
+                currentLevel === 'MODERATE' ? 'bg-amber-500' : 'bg-emerald-500'
+              }`}
               style={{ width: `${riskData?.score || biosafetyScore || 0}%` }}
             ></div>
           </div>
-          <p className={`text-xs mt-2 font-semibold ${getRiskColor(riskData?.level)}`}>
-            {riskData?.level || 'LOADING'}
-          </p>
-        </motion.div>
+        </div>
 
         {/* AQI */}
-        <motion.div whileHover={{ scale: 1.02, y: -5 }} className="card group cursor-pointer">
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex-1">
-              <p className="text-gray-600 text-sm font-medium mb-1">Air Quality (AQI)</p>
-              <p className={`text-4xl font-bold ${
-                (aqiData?.raw || 0) > 200 ? 'text-red-600' :
-                (aqiData?.raw || 0) > 100 ? 'text-orange-500' :
-                (aqiData?.raw || 0) > 50 ? 'text-yellow-600' : 'text-green-600'
-              }`}>
-                {aqiData?.raw ?? '—'}
-              </p>
+        <div className="card">
+          <div className="card-header">
+            <span className="metric-label">Air Quality Index</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+          </div>
+          <p className={`text-3xl font-bold ${
+            (aqiData?.raw || 0) > 200 ? 'text-rose-600' :
+            (aqiData?.raw || 0) > 100 ? 'text-orange-600' :
+            (aqiData?.raw || 0) > 50 ? 'text-amber-600' : 'text-emerald-600'
+          }`}>
+            {aqiData?.raw ?? '--'}
+          </p>
+          <div className="mt-3 grid grid-cols-2 gap-2 text-xs border-t border-slate-100 pt-3">
+            <div>
+              <span className="text-slate-400 uppercase">PM2.5</span>
+              <p className="font-mono text-slate-700">{aqiData?.pm25 ?? '--'} µg/m³</p>
             </div>
-            <span className="text-3xl group-hover:scale-110 transition-transform">🌬️</span>
-          </div>
-          <p className="text-xs text-gray-500">
-            PM2.5: {aqiData?.pm25 ?? '—'} • PM10: {aqiData?.pm10 ?? '—'} • OpenWeatherMap live
-          </p>
-        </motion.div>
-
-        {/* Weather */}
-        <motion.div whileHover={{ scale: 1.02, y: -5 }} className="card group cursor-pointer">
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex-1">
-              <p className="text-gray-600 text-sm font-medium mb-1">Weather Risk</p>
-              <p className="text-4xl font-bold text-black">
-                {weatherData?.score ?? '—'}
-              </p>
+            <div>
+              <span className="text-slate-400 uppercase">PM10</span>
+              <p className="font-mono text-slate-700">{aqiData?.pm10 ?? '--'} µg/m³</p>
             </div>
-            <span className="text-3xl group-hover:scale-110 transition-transform">
-              {weatherData?.condition === 'Rain' ? '🌧️' :
-               weatherData?.condition === 'Clouds' ? '☁️' :
-               weatherData?.condition === 'Clear' ? '☀️' : '🌤️'}
-            </span>
           </div>
-          <p className="text-xs text-gray-500">
-            {weatherData?.temp ?? '—'}°C • {weatherData?.humidity ?? '—'}% • UV {weatherData?.uvIndex ?? '—'} • {weatherData?.condition ?? '—'}
-          </p>
-        </motion.div>
+        </div>
 
-        {/* Active Alerts */}
-        <motion.div whileHover={{ scale: 1.02, y: -5 }} className="card group cursor-pointer">
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex-1">
-              <p className="text-gray-600 text-sm font-medium mb-1">Active Alerts</p>
-              <p className={`text-4xl font-bold ${alerts?.length > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                {alerts?.length || 0}
-              </p>
+        {/* Crowd Density */}
+        <div className="card">
+          <div className="card-header">
+            <span className="metric-label">Crowd Density</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+          </div>
+          <div className="flex items-end gap-2">
+            <p className="text-3xl font-bold text-slate-800">
+              {crowdDensity ?? '--'}
+            </p>
+            <span className="text-sm font-medium text-slate-400 mb-1">/100</span>
+          </div>
+          <p className="text-xs text-slate-500 mt-4 border-t border-slate-100 pt-3">
+            Real-time geospatial tracking
+          </p>
+        </div>
+
+        {/* Weather Intelligence */}
+        <div className="card">
+          <div className="card-header">
+            <span className="metric-label">Weather Intelligence</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+          </div>
+          <div className="flex items-center gap-4">
+            <p className="text-3xl font-bold text-slate-800">
+              {weatherData?.temp ?? '--'}°
+            </p>
+            <div className="text-xs text-slate-600 uppercase font-medium">
+              <p>{weatherData?.condition ?? 'Monitoring...'}</p>
             </div>
-            <span className="text-3xl group-hover:scale-110 transition-transform">🔔</span>
           </div>
-          <p className="text-xs text-gray-500">
-            {alerts?.length === 0 ? 'All clear — no threats detected' : `${alerts?.length} alert(s) require attention`}
-          </p>
-        </motion.div>
-      </motion.div>
-
-      {/* Secondary KPIs — Crowd & Hygiene */}
-      <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <motion.div whileHover={{ scale: 1.02 }} className="card">
-          <div className="flex items-center gap-3 mb-2">
-            <span className="text-2xl">👥</span>
-            <p className="text-gray-600 text-sm font-medium">Crowd Density</p>
+          <div className="mt-3 grid grid-cols-2 gap-2 text-xs border-t border-slate-100 pt-3">
+            <div>
+              <span className="text-slate-400 uppercase">Humidity</span>
+              <p className="font-mono text-slate-700">{weatherData?.humidity ?? '--'}%</p>
+            </div>
+            <div>
+              <span className="text-slate-400 uppercase">UV Index</span>
+              <p className="font-mono text-slate-700">{weatherData?.uvIndex ?? '--'}</p>
+            </div>
           </div>
-          <p className="text-3xl font-bold text-black">
-            {crowdDensity !== undefined && crowdDensity !== null ? crowdDensity : '—'}
-            <span className="text-sm text-gray-400 ml-1">/100</span>
-          </p>
-          <p className="text-xs text-gray-500 mt-1">OSM + Overpass · transport & hotspots</p>
-        </motion.div>
+        </div>
+      </div>
 
-        <motion.div whileHover={{ scale: 1.02 }} className="card">
-          <div className="flex items-center gap-3 mb-2">
-            <span className="text-2xl">🧼</span>
-            <p className="text-gray-600 text-sm font-medium">Hygiene Score</p>
+      {/* Charts & Secondary Intel */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main Chart */}
+        <div className="lg:col-span-2 card flex flex-col">
+          <div className="card-header">
+            <span className="metric-label">24-Hour Risk Assessment Trend</span>
+            <span className="text-xs text-slate-400 uppercase font-mono">Live Sync</span>
           </div>
-          <p className="text-3xl font-bold text-green-600">
-            {hygieneScore !== undefined && hygieneScore !== null ? hygieneScore : '—'}
-            <span className="text-sm text-gray-400 ml-1">/100</span>
-          </p>
-        </motion.div>
-
-        <motion.div whileHover={{ scale: 1.02 }} className="card">
-          <div className="flex items-center gap-3 mb-2">
-            <span className="text-2xl">⏱️</span>
-            <p className="text-gray-600 text-sm font-medium">Time to Safe</p>
-          </div>
-          <p className="text-3xl font-bold text-black">
-            {riskData?.timeToSafe || '—'}
-          </p>
-        </motion.div>
-      </motion.div>
-
-      {/* Content Grid — Chart + Alerts */}
-      <motion.div variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Risk Trend Chart */}
-        <motion.div className="lg:col-span-2 card">
-          <h2 className="text-xl font-bold text-black mb-4">Risk Trend (24h)</h2>
-          <div className="h-64">
+          <div className="flex-1 min-h-[250px]">
             {chartData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData}>
+              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
-                  <linearGradient id="riskGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#000000" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#000000" stopOpacity={0.05} />
+                  <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#334155" stopOpacity={0.2}/>
+                    <stop offset="95%" stopColor="#334155" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="time" tick={{ fontSize: 11, fill: '#9ca3af' }} interval={3} />
-                <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: '#9ca3af' }} />
-                <Tooltip
-                  contentStyle={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
-                  labelStyle={{ fontWeight: 'bold' }}
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                <XAxis dataKey="time" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} dy={10} />
+                <YAxis domain={[0, 100]} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderRadius: '4px', fontSize: '12px' }}
+                  itemStyle={{ color: '#0f172a', fontWeight: '600' }}
                 />
-                <Area
-                  type="monotone" dataKey="score" name="Risk Score"
-                  stroke="#000000" fill="url(#riskGradient)" strokeWidth={2}
-                />
+                <Area type="monotone" dataKey="score" stroke="#334155" strokeWidth={2} fillOpacity={1} fill="url(#colorScore)" />
               </AreaChart>
             </ResponsiveContainer>
             ) : (
-              <div className="h-full flex items-center justify-center">
-                <div className="text-center">
-                  <span className="text-3xl">📈</span>
-                  <p className="text-gray-400 mt-2">Collecting live data...</p>
-                  <p className="text-xs text-gray-300 mt-1">Chart will populate as scores arrive</p>
-                </div>
+              <div className="h-full flex flex-col items-center justify-center text-slate-400 border-2 border-dashed border-slate-200 rounded-sm bg-slate-50/50">
+                <div className="w-4 h-4 bg-slate-300 rounded-sm mb-3"></div>
+                <p className="text-sm font-medium uppercase tracking-wide">Awaiting Telemetry</p>
+                <p className="text-xs font-mono mt-1">Matrix initializing...</p>
               </div>
             )}
           </div>
-        </motion.div>
+        </div>
 
-        {/* Recent Alerts */}
-        <motion.div className="card">
-          <h2 className="text-xl font-bold text-black mb-4">Recent Alerts</h2>
-          <div className="space-y-3 max-h-80 overflow-y-auto">
+        {/* Alerts Log */}
+        <div className="card flex flex-col">
+          <div className="card-header">
+            <span className="metric-label">System Alerts Log</span>
+            <span className={`badge ${alerts?.length > 0 ? 'badge-high' : 'badge-safe'}`}>
+              {alerts?.length || 0} ACTIVE
+            </span>
+          </div>
+          <div className="flex-1 overflow-y-auto max-h-[250px] space-y-2 pr-2 scrollbar-thin">
             {alerts && alerts.length > 0 ? (
-              alerts.slice(0, 5).map((alert, idx) => (
-                <motion.div
-                  key={alert.id || idx}
-                  whileHover={{ x: 5 }}
-                  className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                    alert.severity === 'critical' ? 'bg-red-50 border-red-200' :
-                    alert.severity === 'high' ? 'bg-orange-50 border-orange-200' :
-                    'bg-gray-50 border-gray-200'
-                  }`}
-                >
-                  <p className="text-sm font-medium text-black">{alert.title}</p>
-                  <p className="text-xs text-gray-600 mt-1">{alert.message}</p>
-                  <p className="text-xs text-gray-400 mt-2">
-                    {alert.timestamp ? new Date(alert.timestamp).toLocaleTimeString() : 'Just now'}
+              alerts.slice(0, 8).map((alert, idx) => (
+                <div key={alert.id || idx} className={`p-3 rounded-sm border-l-4 text-sm ${
+                  alert.severity === 'critical' ? 'bg-rose-50 border-rose-500' :
+                  alert.severity === 'high' ? 'bg-orange-50 border-orange-500' :
+                  'bg-slate-50 border-slate-400'
+                }`}>
+                  <p className="font-bold text-slate-800">{alert.title}</p>
+                  <p className="text-xs text-slate-600 mt-1">{alert.message}</p>
+                  <p className="text-[10px] text-slate-400 font-mono mt-2 uppercase">
+                    {alert.timestamp ? new Date(alert.timestamp).toLocaleTimeString() : 'T-0m'}
                   </p>
-                </motion.div>
+                </div>
               ))
             ) : (
-              <div className="text-center py-8">
-                <span className="text-3xl">✅</span>
-                <p className="text-gray-500 mt-2">No recent alerts</p>
+              <div className="h-full flex flex-col items-center justify-center text-slate-400">
+                <span className="px-2 py-1 bg-slate-200 text-slate-600 font-bold text-[10px] rounded mb-2">SYSTEM OK</span>
+                <p className="text-sm font-medium uppercase tracking-wide">No Anomalies</p>
               </div>
             )}
           </div>
-        </motion.div>
-      </motion.div>
-
-      {/* Trends Section — Live Data */}
-      <motion.div variants={itemVariants} className="card">
-        <h2 className="text-xl font-bold text-black mb-6">Trend Analysis</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {[
-            {
-              label: 'This Hour',
-              change: trends?.week?.change || '—',
-              trend: trends?.week?.trend || 'stable',
-            },
-            {
-              label: 'Today',
-              change: trends?.month?.change || '—',
-              trend: trends?.month?.trend || 'stable',
-            },
-            {
-              label: 'This Week',
-              change: trends?.year?.change || '—',
-              trend: trends?.year?.trend || 'stable',
-            },
-          ].map((trend, idx) => (
-            <div key={idx} className="p-4 bg-gray-50 rounded-lg">
-              <p className="text-sm text-gray-600 mb-2">{trend.label}</p>
-              <p className={`text-2xl font-bold ${
-                trend.trend === 'down' ? 'text-green-600' :
-                trend.trend === 'up' ? 'text-red-600' :
-                'text-gray-600'
-              }`}>
-                {trend.change}
-              </p>
-              <p className="text-xs text-gray-400 mt-1">
-                {trend.trend === 'up' ? '↑ Increasing risk' :
-                 trend.trend === 'down' ? '↓ Decreasing risk' :
-                 '→ Stable'}
-              </p>
-            </div>
-          ))}
         </div>
-      </motion.div>
+      </div>
 
-      {/* Zone Overview */}
+      {/* Analytics Overview Bar */}
       {overview && overview.totalHexes > 0 && (
-        <motion.div variants={itemVariants} className="card">
-          <h2 className="text-xl font-bold text-black mb-4">Zone Status</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="p-3 bg-red-50 rounded-lg text-center">
-              <p className="text-2xl font-bold text-red-600">{overview.criticalCount || 0}</p>
-              <p className="text-xs text-red-600">Critical</p>
+        <div className="card">
+          <div className="card-header border-b-0 pb-0 mb-3">
+            <span className="metric-label">Regional Infrastructure State</span>
+            <span className="text-xs font-mono text-slate-500 uppercase">Sector: {overview.totalHexes} Hex Cells</span>
+          </div>
+          <div className="grid grid-cols-4 gap-px bg-slate-200 border border-slate-200 rounded-sm overflow-hidden">
+            <div className="bg-white p-3 text-center">
+              <p className="text-xl font-black text-emerald-600">{overview.lowCount || 0}</p>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-1">Low Risk</p>
             </div>
-            <div className="p-3 bg-orange-50 rounded-lg text-center">
-              <p className="text-2xl font-bold text-orange-500">{overview.highCount || 0}</p>
-              <p className="text-xs text-orange-500">High</p>
+            <div className="bg-white p-3 text-center">
+              <p className="text-xl font-black text-amber-600">{overview.moderateCount || 0}</p>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-1">Moderate</p>
             </div>
-            <div className="p-3 bg-yellow-50 rounded-lg text-center">
-              <p className="text-2xl font-bold text-yellow-600">{overview.moderateCount || 0}</p>
-              <p className="text-xs text-yellow-600">Moderate</p>
+            <div className="bg-white p-3 text-center">
+              <p className="text-xl font-black text-orange-600">{overview.highCount || 0}</p>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-1">High Risk</p>
             </div>
-            <div className="p-3 bg-green-50 rounded-lg text-center">
-              <p className="text-2xl font-bold text-green-600">{overview.lowCount || 0}</p>
-              <p className="text-xs text-green-600">Low</p>
+            <div className="bg-white p-3 text-center">
+              <p className="text-xl font-black text-rose-600">{overview.criticalCount || 0}</p>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-1">Critical</p>
             </div>
           </div>
-          <p className="text-xs text-gray-400 mt-3 text-center">
-            Monitoring {overview.totalHexes} H3 hex zones (~1km² each)
-          </p>
-        </motion.div>
+        </div>
       )}
-    </motion.div>
+    </div>
   );
 };
 

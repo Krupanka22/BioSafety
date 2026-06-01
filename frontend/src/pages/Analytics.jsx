@@ -32,16 +32,9 @@ const Analytics = () => {
     fetchCorrelation();
     fetchInsights();
 
-    const interval = setInterval(() => {
-      fetchPredictions();
-      fetchInsights();
-      fetchCorrelation();
-    }, 120000);
-
     return () => {
       cleanupSocketListeners();
       cleanupDashboardSockets();
-      clearInterval(interval);
     };
   }, []);
 
@@ -88,8 +81,12 @@ const Analytics = () => {
       <motion.div variants={itemVariants}>
         <h1 className="text-4xl font-bold text-black mb-2">Advanced Analytics</h1>
         <p className="text-gray-600">Predictive modeling and risk forecasting from live data</p>
-        <p className="text-xs text-gray-400 mt-1">
-          {connectionStatus === 'connected' ? '🟢 Live stream active' : '🔴 Waiting for live connection'}
+        <p className="text-xs text-gray-400 mt-1 flex items-center gap-2">
+          {connectionStatus === 'connected' ? (
+            <><span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Live stream active</>
+          ) : (
+            <><span className="w-2 h-2 rounded-full bg-red-500"></span> Waiting for live connection</>
+          )}
           {lastLiveUpdate ? ` • Last grid update ${new Date(lastLiveUpdate).toLocaleTimeString()}` : ''}
         </p>
       </motion.div>
@@ -100,7 +97,7 @@ const Analytics = () => {
           {
             title: '7-Day Forecast',
             value: riskData?.level || predictions?.currentOverview?.riskLevel || '—',
-            icon: '📅',
+            icon: <div className="w-3 h-3 bg-slate-400 rounded-sm"></div>,
             description: `Avg predicted score: ${forecastData.slice(0, 7).length > 0
               ? Math.round(forecastData.slice(0, 7).reduce((s, d) => s + d.predicted, 0) / 7) : '—'
             }`,
@@ -114,13 +111,13 @@ const Analytics = () => {
               }
               return '—';
             })(),
-            icon: '⏰',
+            icon: <div className="w-3 h-3 bg-slate-400 rounded-sm"></div>,
             description: `Current score: ${riskData?.score ?? overview?.avgScore ?? '—'}`,
           },
           {
             title: 'Model Confidence',
             value: predictions?.modelAccuracy ? `${predictions.modelAccuracy.toFixed(1)}%` : '—',
-            icon: '🎯',
+            icon: <div className="w-3 h-3 bg-slate-400 rounded-sm"></div>,
             description: `Based on ${predictions?.forecastDays || 0}-day forecast window`,
           },
         ].map((card, idx) => (
@@ -130,7 +127,7 @@ const Analytics = () => {
                 <p className="text-gray-600 text-sm font-medium">{card.title}</p>
                 <p className="text-2xl font-bold text-black mt-2">{card.value}</p>
               </div>
-              <span className="text-3xl group-hover:scale-110 transition-transform">{card.icon}</span>
+              <div className="text-3xl group-hover:scale-110 transition-transform">{card.icon}</div>
             </div>
             <p className="text-xs text-gray-600">{card.description}</p>
           </motion.div>
@@ -247,7 +244,7 @@ const Analytics = () => {
                 }`}
               >
                 <div className="flex items-start gap-3">
-                  <span className="text-2xl">{insight.icon}</span>
+                  <div className="w-2 h-2 mt-1.5 rounded-full bg-slate-400 flex-shrink-0"></div>
                   <div>
                     <p className="font-medium text-black">{insight.title}</p>
                     <p className="text-sm text-gray-600 mt-1">{insight.description}</p>
@@ -257,7 +254,7 @@ const Analytics = () => {
             ))
           ) : (
             <div className="text-center py-8 text-gray-400">
-              <span className="text-3xl">📊</span>
+              <div className="w-4 h-4 bg-slate-300 rounded-sm mb-3 mx-auto"></div>
               <p className="mt-2">Gathering insights from live data...</p>
             </div>
           )}

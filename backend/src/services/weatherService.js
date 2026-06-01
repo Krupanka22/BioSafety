@@ -1,6 +1,6 @@
 import axios from 'axios';
-import cache from './cacheManager.js';
 import logger from '../utils/logger.js';
+import cache from './cacheManager.js';
 
 /**
  * OpenWeatherMap — unified live weather + air pollution for every H3 cell.
@@ -10,7 +10,7 @@ import logger from '../utils/logger.js';
 const OWM_BASE = 'https://api.openweathermap.org/data/2.5';
 const CACHE_TTL =
   parseInt(process.env.OWM_CACHE_TTL_MS, 10) ||
-  Math.max(20_000, (parseInt(process.env.POLL_INTERVAL_MS, 10) || 30_000) - 5000);
+  Math.max(500_000, (parseInt(process.env.POLL_INTERVAL_MS, 10) || 900_000) - 60_000);
 
 /** EPA PM2.5 breakpoints (µg/m³) → AQI */
 const PM25_BREAKPOINTS = [

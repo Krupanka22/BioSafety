@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useRef, useState } from 'react';
@@ -7,7 +6,7 @@ import { useLiveBiosafety } from '../hooks/useLiveBiosafety';
 import { subscribeLocation } from '../services/socketService';
 
 /**
- * MapView Page — Interactive H3 hex grid biosafety risk map with real-time updates
+ * MapView Page — Interactive GIS-style H3 hex grid biosafety risk map
  */
 const MapView = () => {
   const {
@@ -23,6 +22,7 @@ const MapView = () => {
   const heatLayerGroupRef = useRef(null);
   const routeLayerRef = useRef(null);
   const hexLayersRef = useRef(new Map());
+  
   const [routeLoading, setRouteLoading] = useState(false);
   const [geoLoading, setGeoLoading] = useState(false);
   const [geoError, setGeoError] = useState('');
@@ -34,15 +34,21 @@ const MapView = () => {
 
   const { lat, lng } = useLiveBiosafety({ watch: true });
 
+  const [lastFetchKey, setLastFetchKey] = useState('');
+
   useEffect(() => {
     initSocketListeners();
     return () => cleanupSocketListeners();
   }, []);
 
   useEffect(() => {
-    fetchLocations(lat, lng);
-    fetchNearbyPlaces(lat, lng, 0.6);
-  }, [lat, lng]);
+    const key = `${lat.toFixed(3)}:${lng.toFixed(3)}`;
+    if (key !== lastFetchKey) {
+      setLastFetchKey(key);
+      fetchLocations(lat, lng);
+      fetchNearbyPlaces(lat, lng, 0.6);
+    }
+  }, [lat, lng, lastFetchKey]);
 
   const handleSafeRoute = async () => {
     if (!selectedLocation || !leafletMapRef.current) return;
@@ -64,7 +70,7 @@ const MapView = () => {
 
     routeLayerRef.current = L.geoJSON(
       { type: 'Feature', geometry: geom },
-      { style: { color: '#2563eb', weight: 4, opacity: 0.85 } }
+      { style: { color: '#0ea5e9', weight: 4, opacity: 0.9, dashArray: '5, 10' } }
     ).addTo(leafletMapRef.current);
 
     leafletMapRef.current.fitBounds(routeLayerRef.current.getBounds(), { padding: [40, 40] });
@@ -73,37 +79,24 @@ const MapView = () => {
   const handleZoomToCurrentLocation = () => {
     setGeoLoading(true);
     setGeoError('');
-
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
-
           if (leafletMapRef.current) {
             leafletMapRef.current.setView([latitude, longitude], 14);
-
             if (currentLocationMarkerRef.current) {
               leafletMapRef.current.removeLayer(currentLocationMarkerRef.current);
             }
-
             const marker = L.circleMarker([latitude, longitude], {
-              radius: 12,
-              fillColor: '#3b82f6',
-              color: '#1e40af',
-              weight: 3,
-              opacity: 0.9,
-              fillOpacity: 0.8,
+              radius: 8, fillColor: '#0ea5e9', color: '#0369a1', weight: 2, opacity: 1, fillOpacity: 0.9,
             });
-
-            marker.bindPopup('📍 Your Current Location');
+            marker.bindPopup('<b>Current Origin</b>');
             marker.addTo(leafletMapRef.current);
             currentLocationMarkerRef.current = marker;
-
-            // Refresh data for this location
             fetchLocations(latitude, longitude);
             subscribeLocation(latitude, longitude);
           }
-
           setGeoLoading(false);
         },
         (error) => {
@@ -112,25 +105,25 @@ const MapView = () => {
         }
       );
     } else {
-      setGeoError('Geolocation not supported by your browser');
+      setGeoError('Geolocation unsupported');
       setGeoLoading(false);
     }
   };
 
-  // Initialize Leaflet map
   useEffect(() => {
     if (!mapRef.current || leafletMapRef.current) return;
 
-    const map = L.map(mapRef.current).setView([lat, lng], 13);
+    const map = L.map(mapRef.current, { zoomControl: false }).setView([lat, lng], 13);
+    L.control.zoom({ position: 'topright' }).addTo(map);
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors',
+    // Using a more clinical/enterprise map tile style
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      attribution: '© OpenStreetMap contributors © CARTO',
       maxZoom: 19,
     }).addTo(map);
 
     hexLayerGroupRef.current = L.layerGroup().addTo(map);
     heatLayerGroupRef.current = L.layerGroup().addTo(map);
-
     leafletMapRef.current = map;
     setMapReady(true);
 
@@ -142,10 +135,8 @@ const MapView = () => {
     };
   }, []);
 
-  // Incrementally update H3 hex layers (colors refresh without full map rebuild)
   useEffect(() => {
     if (!leafletMapRef.current || !hexLayerGroupRef.current || !locations?.length) return;
-
     const activeIds = new Set();
 
     locations.forEach((loc) => {
@@ -157,21 +148,16 @@ const MapView = () => {
         }
         return;
       }
-
       activeIds.add(loc.h3Index);
       const fillColor = loc.riskColor || getColorForRisk(loc.riskLevel);
       let layer = hexLayersRef.current.get(loc.h3Index);
 
       if (layer) {
-        layer.setStyle({ fillColor, fillOpacity: 0.45 });
+        layer.setStyle({ fillColor, fillOpacity: 0.25 });
         layer.setPopupContent(createPopupContent(loc));
       } else if (loc.boundary?.length > 0) {
         layer = L.polygon(loc.boundary, {
-          fillColor,
-          color: '#374151',
-          weight: 1,
-          opacity: 0.7,
-          fillOpacity: 0.45,
+          fillColor, color: '#475569', weight: 1, opacity: 0.6, fillOpacity: 0.25,
         });
         layer.bindPopup(createPopupContent(loc));
         layer.on('click', () => selectLocation(loc));
@@ -179,12 +165,7 @@ const MapView = () => {
         hexLayersRef.current.set(loc.h3Index, layer);
       } else {
         layer = L.circleMarker([loc.lat, loc.lng], {
-          radius: 12,
-          fillColor,
-          color: '#374151',
-          weight: 2,
-          opacity: 0.8,
-          fillOpacity: 0.6,
+          radius: 12, fillColor, color: '#475569', weight: 1, opacity: 0.6, fillOpacity: 0.25,
         });
         layer.bindPopup(createPopupContent(loc));
         layer.on('click', () => selectLocation(loc));
@@ -199,341 +180,257 @@ const MapView = () => {
         hexLayersRef.current.delete(h3Index);
       }
     }
-
     setLastMapUpdate(new Date());
   }, [locations, filterLevels, selectLocation]);
 
-  // Live heatmap overlay from socket heatmapPoints (falls back to location scores)
   useEffect(() => {
     if (!heatLayerGroupRef.current) return;
-
     heatLayerGroupRef.current.clearLayers();
-    const points = heatmapPoints?.length > 0
-      ? heatmapPoints
-      : locations.map((loc) => ({
-          lat: loc.lat,
-          lng: loc.lng,
-          intensity: (loc.riskScore || 0) / 100,
-          riskColor: loc.riskColor,
-        }));
+    const points = heatmapPoints?.length > 0 ? heatmapPoints : locations.map((loc) => ({
+      lat: loc.lat, lng: loc.lng, intensity: (loc.riskScore || 0) / 100, riskColor: loc.riskColor,
+    }));
 
     points.forEach((pt) => {
       const intensity = pt.intensity ?? (pt.score || 0) / 100;
       if (intensity < 0.15) return;
-      const heatCircle = L.circle([pt.lat, pt.lng], {
-        radius: 450,
-        fillColor: pt.riskColor || '#ef4444',
-        color: 'transparent',
-        fillOpacity: intensity * 0.2,
-      });
-      heatCircle.addTo(heatLayerGroupRef.current);
+      L.circle([pt.lat, pt.lng], {
+        radius: 400, fillColor: pt.riskColor || '#e11d48', color: 'transparent', fillOpacity: intensity * 0.15,
+      }).addTo(heatLayerGroupRef.current);
     });
   }, [heatmapPoints, locations]);
 
   function getColorForRisk(level) {
-    const colors = {
-      CRITICAL: '#ef4444',
-      HIGH: '#f97316',
-      MODERATE: '#eab308',
-      LOW: '#22c55e',
-    };
-    return colors[level] || '#9ca3af';
+    const colors = { CRITICAL: '#e11d48', HIGH: '#ea580c', MODERATE: '#d97706', LOW: '#16a34a' };
+    return colors[level] || '#94a3b8';
+  }
+
+  function getBadgeClass(level) {
+    const classes = { CRITICAL: 'badge-critical', HIGH: 'badge-high', MODERATE: 'badge-moderate', LOW: 'badge-safe' };
+    return classes[level] || 'badge-safe';
   }
 
   function createPopupContent(loc) {
-    const b = loc.breakdown || {};
     return `
-      <div style="min-width:200px;font-family:inherit;">
-        <h3 style="font-weight:bold;margin:0 0 8px 0;font-size:14px;">${loc.name}</h3>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:12px;">
-          <span>🛡️ Biosafety:</span><strong>${loc.riskScore ?? '—'}</strong>
-          <span>🌬️ AQI:</span><strong>${b.aqi?.raw ?? '—'}</strong>
-          <span>🌫️ PM2.5:</span><strong>${b.aqi?.pm25 ?? '—'}</strong>
-          <span>🌡️ Temp:</span><strong>${b.weather?.temp ?? '—'}°C</strong>
-          <span>💧 Humid:</span><strong>${b.weather?.humidity ?? '—'}%</strong>
-          <span>👥 Crowd:</span><strong>${b.crowdDensity?.score ?? '—'}</strong>
-          <span>🧼 Hygiene:</span><strong>${b.hygiene?.score ?? '—'}</strong>
-        </div>
-        <div style="margin-top:8px;padding:4px 8px;background:${loc.riskColor || '#ccc'};color:white;border-radius:4px;text-align:center;font-weight:bold;font-size:12px;">
-          ${loc.riskLevel} RISK
-        </div>
-        ${loc.reasoning?.summary ? `<p style="margin-top:8px;font-size:11px;color:#374151;line-height:1.4;">${loc.reasoning.summary}</p>` : ''}
+      <div style="font-family:-apple-system, sans-serif; font-size:12px;">
+        <strong style="display:block;margin-bottom:4px;font-size:14px;color:#0f172a;">${loc.name}</strong>
+        <div style="color:#64748b;font-family:monospace;margin-bottom:8px;">${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)}</div>
+        <div style="padding:2px 6px; border-radius:2px; display:inline-block; font-weight:bold; color:white; background-color:${loc.riskColor || '#ccc'}; margin-bottom:8px;">${loc.riskLevel} RISK (${loc.riskScore})</div>
+        <p style="margin:0;color:#334155;">Click region for detailed telemetry.</p>
       </div>
     `;
   }
 
-  const toggleFilter = (level) => {
-    setFilterLevels((prev) => ({ ...prev, [level]: !prev[level] }));
-  };
-
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { staggerChildren: 0.1 } },
-  };
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0 },
-  };
-
   return (
-    <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-6">
-      {/* Header */}
-      <motion.div variants={itemVariants}>
-        <h1 className="text-4xl font-bold text-black mb-2">Risk Heat Map</h1>
-        <p className="text-gray-600">
-          Live H3 grid (~5km radius) — {locations.length} independent zones · per-cell data
-        </p>
-      </motion.div>
-
-      {/* Map + Sidebar */}
-      <motion.div variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Map Area */}
-        <div className="lg:col-span-2 space-y-3">
-          {/* Controls */}
-          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex gap-3 items-center flex-wrap">
-            <button
-              onClick={handleZoomToCurrentLocation}
-              disabled={geoLoading}
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg font-medium transition-all hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              {geoLoading ? (
-                <><span className="animate-spin">⏳</span> Getting Location...</>
-              ) : (
-                <>📍 My Location</>
-              )}
-            </button>
-            <span className="text-xs text-gray-400">
-              {locations.length} hexes • ~1km² each
-            </span>
-            {lastMapUpdate && (
-              <span className="flex items-center gap-1.5 text-xs text-green-600">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
-                Updated {lastMapUpdate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-              </span>
-            )}
-            {geoError && <p className="text-sm text-red-600">{geoError}</p>}
-          </motion.div>
-
-          {/* Map */}
-          <div
-            ref={mapRef}
-            className="card h-96 md:h-[500px] rounded-lg overflow-hidden"
-            style={{ zIndex: 1 }}
-          ></div>
+    <div className="h-full flex flex-col space-y-4 max-w-[1600px] mx-auto">
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-2 border-b border-slate-200">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Geospatial Intelligence Map</h1>
+          <p className="text-xs text-slate-500 uppercase tracking-widest mt-1">
+            Monitoring {locations.length} H3 sectors • Global EPSG:4326 Projection
+          </p>
         </div>
+        <div className="flex items-center gap-4 mt-2 sm:mt-0">
+          <button
+            onClick={handleZoomToCurrentLocation}
+            disabled={geoLoading}
+            className="btn-secondary flex items-center gap-2 text-xs"
+          >
+            {geoLoading ? 'Acquiring...' : 'Target Origin'}
+          </button>
+          <div className="text-right">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Map Sync</p>
+            <p className="text-xs font-mono text-slate-700">
+              {lastMapUpdate ? lastMapUpdate.toLocaleTimeString() : 'Awaiting data'}
+            </p>
+          </div>
+        </div>
+      </div>
 
-        {/* Sidebar */}
-        <motion.div className="space-y-4">
-          {/* Filters */}
-          <motion.div className="card">
-            <h3 className="font-bold text-black mb-4">Risk Filters</h3>
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-4 min-h-0">
+        {/* Left Side: Map Controls & Layers */}
+        <div className="lg:col-span-1 space-y-4 overflow-y-auto pr-2 scrollbar-thin">
+          
+          <div className="card bg-slate-50 border-slate-300">
+            <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider border-b border-slate-200 pb-2 mb-3">Map Layers & Filters</h3>
             <div className="space-y-3">
               {[
-                { level: 'CRITICAL', color: 'bg-red-500',    label: 'Critical Risk' },
-                { level: 'HIGH',     color: 'bg-orange-500', label: 'High Risk' },
-                { level: 'MODERATE', color: 'bg-yellow-500', label: 'Moderate Risk' },
-                { level: 'LOW',      color: 'bg-green-500',  label: 'Low Risk' },
+                { level: 'CRITICAL', color: 'bg-rose-600', label: 'Critical Risk Sectors' },
+                { level: 'HIGH', color: 'bg-orange-600', label: 'High Risk Sectors' },
+                { level: 'MODERATE', color: 'bg-amber-500', label: 'Moderate Risk Sectors' },
+                { level: 'LOW', color: 'bg-emerald-600', label: 'Low Risk Sectors' },
               ].map((filter) => (
                 <label key={filter.level} className="flex items-center gap-3 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={filterLevels[filter.level]}
-                    onChange={() => toggleFilter(filter.level)}
-                    className="w-4 h-4"
+                    onChange={() => setFilterLevels((p) => ({ ...p, [filter.level]: !p[filter.level] }))}
+                    className="w-4 h-4 rounded text-slate-800 border-slate-300 focus:ring-slate-500"
                   />
-                  <div className={`w-3 h-3 rounded ${filter.color}`}></div>
-                  <span className="text-sm text-black">{filter.label}</span>
-                  <span className="text-xs text-gray-400 ml-auto">
+                  <div className={`w-3 h-3 rounded-sm ${filter.color}`}></div>
+                  <span className="text-xs font-medium text-slate-700 flex-1">{filter.label}</span>
+                  <span className="text-[10px] font-mono text-slate-500 font-bold bg-white px-1.5 py-0.5 rounded border border-slate-200">
                     {locations.filter((l) => l.riskLevel === filter.level).length}
                   </span>
                 </label>
               ))}
             </div>
-          </motion.div>
+          </div>
 
-          {/* Selected Location Details */}
-          {selectedLocation && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="card">
-              <h3 className="font-bold text-black mb-4">Zone Details</h3>
+          <div className="card">
+            <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider border-b border-slate-200 pb-2 mb-3">
+              Sector Directory ({locations.length})
+            </h3>
+            <div className="space-y-1.5 max-h-[300px] overflow-y-auto pr-2 scrollbar-thin">
+              {[...locations]
+                .sort((a, b) => (b.riskScore || 0) - (a.riskScore || 0))
+                .map((loc) => (
+                  <button
+                    key={loc.h3Index || loc.id}
+                    onClick={() => {
+                      selectLocation(loc);
+                      if (leafletMapRef.current) leafletMapRef.current.setView([loc.lat, loc.lng], 16);
+                    }}
+                    className={`w-full text-left p-2 rounded border transition-colors flex items-center justify-between ${
+                      selectedLocation?.h3Index === loc.h3Index
+                        ? 'bg-slate-800 border-slate-900 text-white shadow-inner'
+                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="flex-1 truncate pr-2">
+                      <p className="font-bold text-xs truncate uppercase">{loc.name}</p>
+                      <p className={`text-[10px] font-mono mt-0.5 ${selectedLocation?.h3Index === loc.h3Index ? 'text-slate-300' : 'text-slate-500'}`}>
+                        {loc.riskLevel} / {loc.riskScore}
+                      </p>
+                    </div>
+                    <div className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: loc.riskColor || '#94a3b8' }}></div>
+                  </button>
+                ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Center: Live Map */}
+        <div className="lg:col-span-2 relative border border-slate-300 rounded-md shadow-sm bg-slate-100 flex flex-col">
+          <div ref={mapRef} className="flex-1 w-full rounded-md z-10"></div>
+          {!mapReady && (
+            <div className="absolute inset-0 z-20 flex items-center justify-center bg-slate-50/80">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-widest animate-pulse">Initializing GIS Matrix...</span>
+            </div>
+          )}
+        </div>
+
+        {/* Right Side: Selected Location Biosafety Panel */}
+        <div className="lg:col-span-1 space-y-4 overflow-y-auto pr-2 scrollbar-thin">
+          {selectedLocation ? (
+            <div className="card bg-white border-slate-300">
+              <div className="flex items-start justify-between border-b border-slate-200 pb-3 mb-3">
+                <div>
+                  <h3 className="text-sm font-black text-slate-900 uppercase truncate pr-2" title={selectedLocation.name}>
+                    {selectedLocation.name}
+                  </h3>
+                  <p className="text-[10px] text-slate-500 font-mono mt-1">IDX: {selectedLocation.h3Index}</p>
+                </div>
+                <span className={`badge ${getBadgeClass(selectedLocation.riskLevel)} uppercase font-bold text-[10px]`}>
+                  {selectedLocation.riskLevel}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Risk Score</p>
+                  <p className="text-2xl font-black text-slate-800" style={{ color: selectedLocation.riskColor }}>
+                    {selectedLocation.riskScore}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Est. Safe</p>
+                  <p className="text-sm font-bold text-slate-700 mt-1">
+                    {selectedLocation.timeToSafe || 'Unknown'}
+                  </p>
+                </div>
+              </div>
+
+              {selectedLocation.reasoning?.summary && (
+                <div className="mb-4 p-3 bg-slate-50 border border-slate-200 rounded text-xs text-slate-700 leading-relaxed font-medium">
+                  {selectedLocation.reasoning.summary}
+                </div>
+              )}
+
               <div className="space-y-3">
-                <div>
-                  <p className="text-xs text-gray-600">Zone ID</p>
-                  <p className="font-medium text-black">{selectedLocation.name}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-600">Biosafety Score</p>
-                  <p className="font-bold text-2xl" style={{ color: selectedLocation.riskColor }}>
-                    {selectedLocation.riskScore} <span className="text-sm font-normal">/ 100</span>
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-600">Risk Level</p>
-                  <span className="inline-block px-2 py-1 rounded text-xs font-bold text-white" style={{ backgroundColor: selectedLocation.riskColor }}>
-                    {selectedLocation.riskLevel}
-                  </span>
-                </div>
-
-                {/* Breakdown */}
-                {selectedLocation.breakdown?.crowdDensity?.hotspots?.length > 0 && (
-                  <div className="pt-2 border-t border-gray-100">
-                    <p className="text-xs text-gray-600 font-medium mb-2">Crowd Hotspots (OSM)</p>
-                    <ul className="text-xs space-y-1 max-h-24 overflow-y-auto">
-                      {selectedLocation.breakdown.crowdDensity.hotspots.slice(0, 5).map((h, i) => (
-                        <li key={i} className="text-gray-700">
-                          {h.name} <span className="text-gray-400">({h.type})</span>
-                        </li>
-                      ))}
-                    </ul>
+                <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-1">
+                  Environmental Metrics
+                </h4>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="p-2 bg-slate-50 rounded border border-slate-100">
+                    <span className="block text-[10px] text-slate-500 uppercase">AQI (PM2.5)</span>
+                    <span className="font-mono font-bold text-slate-800">{selectedLocation.breakdown?.aqi?.raw ?? '--'}</span>
                   </div>
-                )}
+                  <div className="p-2 bg-slate-50 rounded border border-slate-100">
+                    <span className="block text-[10px] text-slate-500 uppercase">Temp</span>
+                    <span className="font-mono font-bold text-slate-800">{selectedLocation.breakdown?.weather?.temp ?? '--'}°C</span>
+                  </div>
+                  <div className="p-2 bg-slate-50 rounded border border-slate-100">
+                    <span className="block text-[10px] text-slate-500 uppercase">Crowd Density</span>
+                    <span className="font-mono font-bold text-slate-800">{selectedLocation.breakdown?.crowdDensity?.score ?? '--'}/100</span>
+                  </div>
+                  <div className="p-2 bg-slate-50 rounded border border-slate-100">
+                    <span className="block text-[10px] text-slate-500 uppercase">Hygiene</span>
+                    <span className="font-mono font-bold text-slate-800">{selectedLocation.breakdown?.hygiene?.score ?? '--'}/100</span>
+                  </div>
+                </div>
+              </div>
 
-                {selectedLocation.breakdown && (
-                  <div className="space-y-2 pt-2 border-t border-gray-100">
-                    <p className="text-xs text-gray-600 font-medium">Score Breakdown</p>
-                    {[
-                      { label: 'AQI', value: selectedLocation.breakdown.aqi?.score, icon: '🌬️' },
-                      { label: 'Weather', value: selectedLocation.breakdown.weather?.score, icon: '🌡️' },
-                      { label: 'Crowd', value: selectedLocation.breakdown.crowdDensity?.score, icon: '👥' },
-                      { label: 'Hygiene', value: selectedLocation.breakdown.hygiene?.score, icon: '🧼', invert: true },
-                      { label: 'Historical', value: selectedLocation.breakdown.historical?.score, icon: '📊' },
-                    ].map((item) => (
-                      <div key={item.label} className="flex items-center gap-2">
-                        <span className="text-sm">{item.icon}</span>
-                        <span className="text-xs text-gray-600 w-16">{item.label}</span>
-                        <div className="flex-1 bg-gray-200 rounded-full h-1.5">
-                          <div
-                            className="bg-black h-1.5 rounded-full transition-all"
-                            style={{ width: `${item.value || 0}%` }}
-                          ></div>
-                        </div>
-                        <span className="text-xs font-mono text-gray-600 w-8 text-right">
-                          {item.value ?? '—'}
-                        </span>
-                      </div>
+              {selectedLocation.breakdown?.crowdDensity?.hotspots?.length > 0 && (
+                <div className="mt-4">
+                  <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-1 mb-2">
+                    Detected Hotspots
+                  </h4>
+                  <ul className="text-[10px] space-y-1 max-h-24 overflow-y-auto scrollbar-thin">
+                    {selectedLocation.breakdown.crowdDensity.hotspots.map((h, i) => (
+                      <li key={i} className="flex justify-between py-1 border-b border-slate-50">
+                        <span className="font-medium text-slate-700 truncate mr-2">{h.name}</span>
+                        <span className="text-slate-400 font-mono truncate max-w-[80px]">{h.type}</span>
+                      </li>
                     ))}
-                  </div>
-                )}
-
-                <div>
-                  <p className="text-xs text-gray-600">Coordinates</p>
-                  <p className="font-mono text-sm text-black">
-                    {selectedLocation.lat?.toFixed(4)}, {selectedLocation.lng?.toFixed(4)}
-                  </p>
+                  </ul>
                 </div>
+              )}
 
-                {selectedLocation.reasoning?.summary && (
-                  <div className="p-2 bg-gray-50 rounded text-xs text-gray-700 leading-relaxed">
-                    {selectedLocation.reasoning.summary}
-                  </div>
-                )}
-
+              <div className="mt-4 pt-4 border-t border-slate-200">
                 <button
-                  type="button"
                   onClick={handleSafeRoute}
                   disabled={routeLoading}
-                  className="w-full mt-2 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  className="w-full btn-primary flex justify-center items-center gap-2 text-xs"
                 >
-                  {routeLoading ? 'Calculating OSRM route…' : '🛣️ Safe route (OSRM)'}
+                  {routeLoading ? 'Calculating Safe Vector...' : 'Plot Evacuation Route'}
                 </button>
                 {safeRoute?.direct?.risk?.avgRisk != null && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    Route avg risk: {safeRoute.direct.risk.avgRisk}
-                    {safeRoute.recommendation === 'alternative' && safeRoute.alternative?.risk
-                      ? ` → safer alt: ${safeRoute.alternative.risk.avgRisk}`
-                      : ''}
-                  </p>
+                  <div className="mt-2 text-[10px] font-mono bg-slate-50 p-2 rounded border border-slate-200">
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Direct Route Risk:</span>
+                      <span className="font-bold text-slate-700">{safeRoute.direct.risk.avgRisk}</span>
+                    </div>
+                    {safeRoute.recommendation === 'alternative' && safeRoute.alternative?.risk && (
+                      <div className="flex justify-between mt-1 text-emerald-600">
+                        <span>Safe Alt Found:</span>
+                        <span className="font-bold">{safeRoute.alternative.risk.avgRisk}</span>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
-            </motion.div>
+            </div>
+          ) : (
+            <div className="card h-full flex flex-col items-center justify-center text-slate-400 bg-slate-50/50 border-dashed border-2">
+              <div className="w-4 h-4 bg-slate-300 rounded-sm mb-3"></div>
+              <p className="text-xs font-bold uppercase tracking-wider text-center">No Sector Selected</p>
+              <p className="text-[10px] text-slate-400 mt-2 text-center max-w-[150px]">Select a region on the map or from the directory to view detailed telemetry.</p>
+            </div>
           )}
-
-          {/* Nearby OSM / Nominatim places */}
-          <motion.div className="card">
-            <h3 className="font-bold text-black mb-3">
-              Nearby Places <span className="text-xs text-gray-400 font-normal">(Nominatim)</span>
-            </h3>
-            <div className="space-y-2 max-h-40 overflow-y-auto">
-              {nearbyPlaces.length > 0 ? (
-                nearbyPlaces.slice(0, 8).map((p, i) => (
-                  <div key={`${p.osmId}-${i}`} className="text-sm p-2 bg-gray-50 rounded">
-                    <p className="font-medium text-black truncate">{p.name}</p>
-                    <p className="text-xs text-gray-500">{p.distanceKm} km</p>
-                  </div>
-                ))
-              ) : (
-                <p className="text-xs text-gray-400 text-center py-2">Loading nearby places…</p>
-              )}
-            </div>
-          </motion.div>
-
-          {/* Nearby Zones List */}
-          <motion.div className="card">
-            <h3 className="font-bold text-black mb-4">
-              Nearby Zones <span className="text-xs text-gray-400 font-normal">({locations.length})</span>
-            </h3>
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {locations && locations.length > 0 ? (
-                [...locations]
-                  .sort((a, b) => (b.riskScore || 0) - (a.riskScore || 0))
-                  .slice(0, 20)
-                  .map((loc) => (
-                    <motion.button
-                      key={loc.h3Index || loc.id}
-                      whileHover={{ x: 5 }}
-                      onClick={() => {
-                        selectLocation(loc);
-                        if (leafletMapRef.current) {
-                          leafletMapRef.current.setView([loc.lat, loc.lng], 15);
-                        }
-                      }}
-                      className={`w-full text-left p-3 rounded-lg transition-all flex items-center justify-between ${
-                        selectedLocation?.h3Index === loc.h3Index
-                          ? 'bg-black text-white'
-                          : 'bg-gray-50 text-black hover:bg-gray-100'
-                      }`}
-                    >
-                      <div>
-                        <p className="font-medium text-sm">{loc.name}</p>
-                        <p className="text-xs opacity-75">{loc.riskLevel}</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold">{loc.riskScore ?? '—'}</span>
-                        <div
-                          className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: loc.riskColor || '#9ca3af' }}
-                        ></div>
-                      </div>
-                    </motion.button>
-                  ))
-              ) : (
-                <p className="text-sm text-gray-500 text-center py-4">Loading zones...</p>
-              )}
-            </div>
-          </motion.div>
-        </motion.div>
-      </motion.div>
-
-      {/* Legend */}
-      <motion.div variants={itemVariants} className="card">
-        <h3 className="font-bold text-black mb-4">Risk Level Legend</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { color: 'bg-red-500', label: 'Critical', value: '75-100' },
-            { color: 'bg-orange-500', label: 'High', value: '50-74' },
-            { color: 'bg-yellow-500', label: 'Moderate', value: '25-49' },
-            { color: 'bg-green-500', label: 'Low', value: '0-24' },
-          ].map((item) => (
-            <div key={item.label} className="flex items-center gap-2">
-              <div className={`w-4 h-4 rounded ${item.color}`}></div>
-              <div className="text-sm">
-                <p className="font-medium text-black">{item.label}</p>
-                <p className="text-xs text-gray-600">{item.value}</p>
-              </div>
-            </div>
-          ))}
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 };
 

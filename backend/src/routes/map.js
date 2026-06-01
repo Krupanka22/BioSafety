@@ -29,25 +29,33 @@ router.get('/locations', auth, async (req, res) => {
     const lng = parseFloat(req.query.lng) || DEFAULT_LNG;
     const rings = parseInt(req.query.rings) || DEFAULT_RINGS;
 
-    let scores = getCurrentScores();
-    let gridCells = getCurrentGrid();
+    let globalScores = getCurrentScores();
+    let gridCells = getGridForRadius(lat, lng);
+    const validH3 = new Set(gridCells.map(g => g.h3Index));
+    
+    let scores = globalScores.filter(s => validH3.has(s.h3Index));
 
-    if (!scores || scores.length === 0) {
-      gridCells = getGridForRadius(lat, lng);
+    if (scores.length === 0) {
       scores = await computeScoresForGrid(gridCells);
-    } else if (!gridCells || gridCells.length === 0) {
-      gridCells = getGridForRadius(lat, lng);
     }
 
     const boundaryByHex = new Map(
       gridCells.map((g) => [g.h3Index, g.boundary || []])
     );
 
-    const locations = scores.map((s, idx) => ({
-      id: idx + 1,
-      h3Index: s.h3Index,
-      name: `Zone ${s.h3Index.slice(-6).toUpperCase()}`,
-      lat: s.lat,
+    const locations = scores.map((s, idx) => {
+      let zoneName = `Zone ${s.h3Index.slice(-6).toUpperCase()}`;
+      if (s.breakdown?.crowdDensity?.hotspots?.length > 0) {
+        const firstHotspot = s.breakdown.crowdDensity.hotspots[0];
+        if (firstHotspot.name && firstHotspot.name !== 'other' && !firstHotspot.name.startsWith('bus_') && !firstHotspot.name.startsWith('train_')) {
+          zoneName = firstHotspot.name;
+        }
+      }
+      return {
+        id: idx + 1,
+        h3Index: s.h3Index,
+        name: zoneName,
+        lat: s.lat,
       lng: s.lng,
       riskLevel: s.riskLevel,
       riskScore: s.biosafetyScore,
@@ -57,7 +65,8 @@ router.get('/locations', auth, async (req, res) => {
       breakdown: s.breakdown,
       reasoning: s.reasoning,
       timestamp: s.timestamp,
-    }));
+      };
+    });
 
     res.json(locations);
   } catch (err) {
@@ -96,11 +105,10 @@ router.get('/nearby', auth, async (req, res) => {
     const lng = parseFloat(req.query.lng) || DEFAULT_LNG;
     const radius = parseFloat(req.query.radius) || 0.5;
 
-    const [geo, places, scores] = await Promise.all([
-      reverseGeocode(lat, lng),
-      searchNearbyPlaces(lat, lng, radius, 20),
-      Promise.resolve(getCurrentScores()),
-    ]);
+    // Run Nominatim requests sequentially to respect their 1-request-per-second concurrency limit
+    const geo = await reverseGeocode(lat, lng);
+    const places = await searchNearbyPlaces(lat, lng, radius, 20);
+    const scores = getCurrentScores();
 
     res.json({
       location: geo,

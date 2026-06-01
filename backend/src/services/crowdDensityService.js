@@ -1,7 +1,7 @@
 import axios from 'axios';
-import cache from './cacheManager.js';
-import { latLngToH3, getHexBbox } from './h3GridEngine.js';
 import logger from '../utils/logger.js';
+import cache from './cacheManager.js';
+import { getHexBbox, latLngToH3 } from './h3GridEngine.js';
 
 /**
  * Crowd Density — 100% free geospatial intelligence (OpenStreetMap + Overpass).
@@ -15,7 +15,7 @@ const OVERPASS_MIRRORS = (process.env.OVERPASS_MIRRORS || '')
   .split(',')
   .map((s) => s.trim())
   .filter(Boolean);
-const CACHE_TTL = parseInt(process.env.CROWD_CACHE_TTL_MS, 10) || 120_000;
+const CACHE_TTL = parseInt(process.env.CROWD_CACHE_TTL_MS, 10) || 840_000; // 14 minutes, matching data refresh interval
 
 /** Weight map for crowd-relevant OSM features */
 const CROWD_WEIGHTS = {
@@ -159,7 +159,11 @@ async function queryOverpass(query) {
   for (const url of endpoints) {
     try {
       const resp = await axios.post(url, `data=${encodeURIComponent(query)}`, {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        headers: { 
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Accept': 'application/json',
+          'User-Agent': 'BiosafetyApp/1.0 (contact: admin@biosafety.local)'
+        },
         timeout: parseInt(process.env.OVERPASS_TIMEOUT_MS, 10) || 35_000,
       });
       return resp.data?.elements || [];
@@ -365,12 +369,33 @@ export async function fetchCrowdForHexIndependent(h3Index, lat, lng) {
   const cached = cache.get(cacheKey);
   if (cached) return cached;
 
-  const bbox = getHexBbox(h3Index);
-  const pad = 0.0015;
-  const south = bbox.south - pad;
-  const north = bbox.north + pad;
-  const west = bbox.west - pad;
-  const east = bbox.east + pad;
+  let south, north, west, east;
+  if (h3Index && h3Index.startsWith('ind_')) {
+    // For independent points, calculate a ~500m bounding box
+    const padLat = 0.0045; // ~500m
+    const padLng = 0.0045 / Math.cos(lat * Math.PI / 180);
+    south = lat - padLat;
+    north = lat + padLat;
+    west = lng - padLng;
+    east = lng + padLng;
+  } else {
+    try {
+      const bbox = getHexBbox(h3Index);
+      const pad = 0.0015;
+      south = bbox.south - pad;
+      north = bbox.north + pad;
+      west = bbox.west - pad;
+      east = bbox.east + pad;
+    } catch (e) {
+      // Fallback if h3Index is invalid
+      const padLat = 0.0045;
+      const padLng = 0.0045 / Math.cos(lat * Math.PI / 180);
+      south = lat - padLat;
+      north = lat + padLat;
+      west = lng - padLng;
+      east = lng + padLng;
+    }
+  }
 
   const bucket = {
     weightedSum: 0,
@@ -438,15 +463,13 @@ export async function fetchCrowdForHexIndependent(h3Index, lat, lng) {
 }
 
 /**
- * Crowd data for a single hex — prefers independent hex bbox fetch.
+ * Crowd data for a single hex — prefers grid snapshot to prevent API rate limiting.
  */
 export async function fetchCrowdForHex(h3Index, lat, lng, gridContext = null) {
-  const independent = await fetchCrowdForHexIndependent(h3Index, lat, lng);
-  if (independent.available) return independent;
-
   if (gridContext?.perHex?.[h3Index]) return gridContext.perHex[h3Index];
   if (activeGridSnapshot?.perHex?.[h3Index]) return activeGridSnapshot.perHex[h3Index];
 
+  const independent = await fetchCrowdForHexIndependent(h3Index, lat, lng);
   return independent;
 }
 

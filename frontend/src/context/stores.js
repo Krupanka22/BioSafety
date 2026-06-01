@@ -309,6 +309,11 @@ export const useMapStore = create((set, get) => ({
   safeRoute: null,
   loading: false,
   gridLoading: false,
+  searchLocation: null,
+
+  setSearchLocation: (lat, lng, name) => {
+    set({ searchLocation: { lat, lng, name } });
+  },
 
   /**
    * Fetch H3 grid with live biosafety scores
@@ -369,12 +374,20 @@ export const useMapStore = create((set, get) => ({
     const gridMap = new Map(
       (data.grid || []).map((g) => [g.h3Index, g.boundary || []])
     );
-    return data.scores.map((s, idx) => ({
-      id: idx + 1,
-      h3Index: s.h3Index,
-      name: `Zone ${s.h3Index.slice(-6).toUpperCase()}`,
-      lat: s.lat,
-      lng: s.lng,
+    return data.scores.map((s, idx) => {
+      let zoneName = `Zone ${s.h3Index.slice(-6).toUpperCase()}`;
+      if (s.breakdown?.crowdDensity?.hotspots?.length > 0) {
+        const firstHotspot = s.breakdown.crowdDensity.hotspots[0];
+        if (firstHotspot.name && firstHotspot.name !== 'other' && !firstHotspot.name.startsWith('bus_') && !firstHotspot.name.startsWith('train_')) {
+          zoneName = firstHotspot.name;
+        }
+      }
+      return {
+        id: idx + 1,
+        h3Index: s.h3Index,
+        name: zoneName,
+        lat: s.lat,
+        lng: s.lng,
       riskLevel: s.riskLevel,
       riskScore: s.biosafetyScore,
       riskColor: s.riskColor,
@@ -383,7 +396,8 @@ export const useMapStore = create((set, get) => ({
       breakdown: s.breakdown,
       reasoning: s.reasoning,
       timestamp: s.timestamp,
-    }));
+      };
+    });
   },
 
   handleGridUpdate: (data) => {

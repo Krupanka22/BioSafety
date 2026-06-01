@@ -13,6 +13,7 @@ import NotFound from './pages/NotFound';
 import Profile from './pages/Profile';
 import Register from './pages/Register';
 import Settings from './pages/Settings';
+import Search from './pages/Search';
 
 // Components
 import Loader from './components/Loader';
@@ -51,6 +52,7 @@ function App() {
         <Route element={<ProtectedRoute />}>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/map" element={<MapView />} />
+          <Route path="/search" element={<Search />} />
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/settings" element={<Settings />} />

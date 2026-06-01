@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useGeolocation } from './useGeolocation';
 import { subscribeLocation } from '../services/socketService';
+import { useMapStore } from '../context/stores';
 
 const DEFAULT_LAT = 12.9716;
 const DEFAULT_LNG = 77.5946;
@@ -11,10 +12,11 @@ const DEFAULT_LNG = 77.5946;
  */
 export function useLiveBiosafety({ rings = null, watch = true } = {}) {
   const geo = useGeolocation({ watch, enableHighAccuracy: true });
+  const searchLocation = useMapStore((state) => state.searchLocation);
   const lastSubRef = useRef(null);
 
-  const lat = geo.latitude ?? DEFAULT_LAT;
-  const lng = geo.longitude ?? DEFAULT_LNG;
+  const lat = searchLocation?.lat ?? geo.latitude ?? DEFAULT_LAT;
+  const lng = searchLocation?.lng ?? geo.longitude ?? DEFAULT_LNG;
 
   useEffect(() => {
     const key = `${lat.toFixed(3)}:${lng.toFixed(3)}:${rings ?? 'auto'}`;

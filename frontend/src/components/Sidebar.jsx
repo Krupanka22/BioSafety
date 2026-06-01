@@ -1,28 +1,42 @@
-import { AnimatePresence, motion } from 'framer-motion';
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../context/authContext';
 
 /**
- * Sidebar Component - Main navigation sidebar with minimal design
+ * Sidebar Component - Enterprise Navigation Sidebar
  */
 const Sidebar = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { logout } = useAuthStore();
   const [isExpanded, setIsExpanded] = useState(true);
-  const [activeRoute, setActiveRoute] = useState('dashboard');
 
-  const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: '📊', route: '/dashboard' },
-    { id: 'map', label: 'Risk Map', icon: '🗺️', route: '/map' },
-    { id: 'analytics', label: 'Analytics', icon: '📈', route: '/analytics' },
-    { id: 'profile', label: 'Profile', icon: '👤', route: '/profile' },
-    { id: 'settings', label: 'Settings', icon: '⚙️', route: '/settings' },
+  const navGroups = [
+    {
+      title: 'Command Center',
+      items: [
+        { id: 'dashboard', label: 'Dashboard Overview', route: '/dashboard' },
+        { id: 'map', label: 'Geospatial Map', route: '/map' },
+        { id: 'search', label: 'Location Search', route: '/search' },
+      ]
+    },
+    {
+      title: 'Intelligence Modules',
+      items: [
+        { id: 'analytics', label: 'Environmental Analytics', route: '/analytics' },
+      ]
+    },
+    {
+      title: 'System & Reports',
+      items: [
+        { id: 'profile', label: 'User Profile', route: '/profile' },
+        { id: 'settings', label: 'System Configuration', route: '/settings' },
+      ]
+    }
   ];
 
-  const handleNavigation = (item) => {
-    setActiveRoute(item.id);
-    navigate(item.route);
+  const handleNavigation = (route) => {
+    navigate(route);
   };
 
   const handleLogout = () => {
@@ -31,69 +45,61 @@ const Sidebar = () => {
   };
 
   return (
-    <motion.aside
-      initial={{ x: -250 }}
-      animate={{ x: 0 }}
-      transition={{ duration: 0.3 }}
+    <aside
       className={`${
-        isExpanded ? 'w-64' : 'w-20'
-      } bg-black text-white h-screen flex flex-col border-r border-gray-800 transition-all duration-300`}
+        isExpanded ? 'w-64' : 'w-16'
+      } bg-slate-900 text-slate-300 h-screen flex flex-col border-r border-slate-800 transition-all duration-300 z-40`}
     >
-      {/* Logo */}
-      <div className="p-6 border-b border-gray-800">
-        <motion.div
-          whileHover={{ scale: 1.05 }}
-          className="flex items-center gap-3 cursor-pointer"
-        >
-          <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center text-black font-bold text-lg">
-            B
-          </div>
-          {isExpanded && <span className="font-bold text-lg">BioSafe</span>}
-        </motion.div>
-      </div>
-
       {/* Navigation Items */}
-      <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
-        <AnimatePresence>
-          {navItems.map((item) => (
-            <motion.button
-              key={item.id}
-              whileHover={{ x: 5 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => handleNavigation(item)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-                activeRoute === item.id
-                  ? 'bg-white text-black'
-                  : 'text-gray-300 hover:bg-gray-800'
-              }`}
-            >
-              <span className="text-xl">{item.icon}</span>
-              {isExpanded && <span className="font-medium">{item.label}</span>}
-            </motion.button>
-          ))}
-        </AnimatePresence>
+      <nav className="flex-1 px-3 py-4 space-y-6 overflow-y-auto overflow-x-hidden scrollbar-thin">
+        {navGroups.map((group, groupIdx) => (
+          <div key={groupIdx} className="space-y-1">
+            {isExpanded && (
+              <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">
+                {group.title}
+              </p>
+            )}
+            {group.items.map((item) => {
+              const isActive = location.pathname === item.route && 
+                (item.id === 'dashboard' || item.id === 'map' || item.id === 'analytics' || item.id === 'settings' || item.id === 'search');
+                
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => handleNavigation(item.route)}
+                  title={!isExpanded ? item.label : ''}
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded text-sm font-medium transition-colors ${
+                    isActive
+                      ? 'bg-slate-800 text-white border-l-2 border-emerald-500'
+                      : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200 border-l-2 border-transparent'
+                  }`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-500 group-hover:bg-slate-300 transition-colors"></span>
+                  {isExpanded && <span className="truncate">{item.label}</span>}
+                </button>
+              );
+            })}
+          </div>
+        ))}
       </nav>
 
       {/* Footer Actions */}
-      <div className="p-4 border-t border-gray-800 space-y-2">
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
+      <div className="p-3 border-t border-slate-800 space-y-2">
+        <button
           onClick={() => setIsExpanded(!isExpanded)}
-          className="w-full py-2 px-4 text-gray-300 hover:bg-gray-800 rounded-lg transition-all"
+          className="w-full py-2 px-3 flex items-center justify-center text-slate-400 hover:bg-slate-800 hover:text-slate-200 rounded transition-colors text-sm"
         >
-          {isExpanded ? '←' : '→'}
-        </motion.button>
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
+          {isExpanded ? 'Collapse Sidebar ◀' : '▶'}
+        </button>
+        <button
           onClick={handleLogout}
-          className="w-full py-2 px-4 bg-red-600 hover:bg-red-700 rounded-lg text-white font-medium transition-all"
+          className={`w-full py-2 px-3 flex items-center justify-center bg-rose-900/50 hover:bg-rose-900 text-rose-200 rounded transition-colors text-sm ${!isExpanded && 'p-2'}`}
+          title="Secure Logout"
         >
-          {isExpanded ? 'Logout' : '🚪'}
-        </motion.button>
+          {isExpanded ? 'SECURE LOGOUT' : 'EXIT'}
+        </button>
       </div>
-    </motion.aside>
+    </aside>
   );
 };
 

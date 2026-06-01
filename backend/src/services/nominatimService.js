@@ -8,7 +8,8 @@ import logger from '../utils/logger.js';
  */
 
 const NOMINATIM_BASE = process.env.NOMINATIM_URL || 'https://nominatim.openstreetmap.org';
-const CACHE_TTL = 300_000; // 5 min
+const CACHE_TTL = 86_400_000; // 24 hours
+const ERROR_TTL = 60_000; // 1 minute penalty for errors
 const USER_AGENT = process.env.NOMINATIM_USER_AGENT || 'BioSafetyPlatform/1.0 (educational; contact@localhost)';
 
 const client = axios.create({
@@ -47,7 +48,9 @@ export async function reverseGeocode(lat, lng) {
     return result;
   } catch (err) {
     logger.warn(`Nominatim reverse geocode failed: ${err.message}`);
-    return { available: false, displayName: null, address: {}, lat, lng, source: 'nominatim' };
+    const fallback = { available: false, displayName: null, address: {}, lat, lng, source: 'nominatim' };
+    cache.set(cacheKey, fallback, ERROR_TTL); // Cache the error briefly to prevent spam
+    return fallback;
   }
 }
 
@@ -112,7 +115,9 @@ export async function searchNearbyPlaces(lat, lng, radiusKm = 0.5, limit = 15) {
     return result;
   } catch (err) {
     logger.warn(`Nominatim nearby search failed: ${err.message}`);
-    return { available: false, places: [], count: 0, source: 'nominatim' };
+    const fallback = { available: false, places: [], count: 0, source: 'nominatim' };
+    cache.set(cacheKey, fallback, ERROR_TTL); // Cache the error briefly to prevent spam
+    return fallback;
   }
 }
 
