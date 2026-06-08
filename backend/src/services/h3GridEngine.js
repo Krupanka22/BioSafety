@@ -9,7 +9,7 @@ const H3_RESOLUTION = 8;
 /** Average hex edge length at res 8 (~km) */
 const HEX_EDGE_KM = 0.461354684;
 
-const MONITOR_RADIUS_KM = parseFloat(process.env.MONITOR_RADIUS_KM) || 5;
+const MONITOR_RADIUS_KM = parseFloat(process.env.MONITOR_RADIUS_KM) || 2;
 const MAX_HEX_CELLS = parseInt(process.env.MAX_HEX_CELLS, 10) || 200;
 
 /**

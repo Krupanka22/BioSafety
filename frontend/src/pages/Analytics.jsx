@@ -79,13 +79,13 @@ const Analytics = () => {
     <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-8">
       {/* Header */}
       <motion.div variants={itemVariants}>
-        <h1 className="text-4xl font-bold text-black mb-2">Advanced Analytics</h1>
-        <p className="text-gray-600">Predictive modeling and risk forecasting from live data</p>
-        <p className="text-xs text-gray-400 mt-1 flex items-center gap-2">
+        <h1 className="text-4xl font-extrabold text-slate-900 mb-2 tracking-tight">Advanced Analytics</h1>
+        <p className="text-slate-600 font-medium">Predictive modeling and risk forecasting from live data</p>
+        <p className="text-xs text-slate-500 mt-2 flex items-center gap-2">
           {connectionStatus === 'connected' ? (
             <><span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Live stream active</>
           ) : (
-            <><span className="w-2 h-2 rounded-full bg-red-500"></span> Waiting for live connection</>
+            <><span className="w-2 h-2 rounded-full bg-rose-500"></span> Waiting for live connection</>
           )}
           {lastLiveUpdate ? ` • Last grid update ${new Date(lastLiveUpdate).toLocaleTimeString()}` : ''}
         </p>
@@ -121,15 +121,15 @@ const Analytics = () => {
             description: `Based on ${predictions?.forecastDays || 0}-day forecast window`,
           },
         ].map((card, idx) => (
-          <motion.div key={idx} whileHover={{ scale: 1.02, y: -5 }} className="card group cursor-pointer">
+          <motion.div key={idx} whileHover={{ scale: 1.02, y: -5 }} className="card group cursor-pointer border-transparent hover:border-indigo-100 hover:shadow-lg transition-all">
             <div className="flex items-start justify-between mb-4">
               <div>
-                <p className="text-gray-600 text-sm font-medium">{card.title}</p>
-                <p className="text-2xl font-bold text-black mt-2">{card.value}</p>
+                <p className="text-slate-500 text-sm font-bold tracking-wide uppercase">{card.title}</p>
+                <p className="text-3xl font-black text-slate-900 mt-2">{card.value}</p>
               </div>
               <div className="text-3xl group-hover:scale-110 transition-transform">{card.icon}</div>
             </div>
-            <p className="text-xs text-gray-600">{card.description}</p>
+            <p className="text-xs text-slate-500">{card.description}</p>
           </motion.div>
         ))}
       </motion.div>
@@ -137,8 +137,8 @@ const Analytics = () => {
       {/* Charts Grid */}
       <motion.div variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Risk Forecast Chart */}
-        <motion.div className="card">
-          <h2 className="text-xl font-bold text-black mb-4">Risk Forecast (30 Days)</h2>
+        <motion.div className="card border-slate-200 shadow-sm">
+          <h2 className="text-xl font-bold text-slate-900 mb-4">Risk Forecast (30 Days)</h2>
           <div className="h-80">
             {forecastData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -159,7 +159,7 @@ const Analytics = () => {
                   <Tooltip contentStyle={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }} />
                   <Area type="monotone" dataKey="upper" stroke="none" fill="url(#confGrad)" name="Upper Bound" />
                   <Area type="monotone" dataKey="lower" stroke="none" fill="url(#confGrad)" name="Lower Bound" />
-                  <Area type="monotone" dataKey="predicted" stroke="#000" fill="url(#forecastGrad)" strokeWidth={2} name="Predicted Risk" />
+                  <Area type="monotone" dataKey="predicted" stroke="#4f46e5" fill="url(#forecastGrad)" strokeWidth={3} name="Predicted Risk" />
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
@@ -171,8 +171,8 @@ const Analytics = () => {
         </motion.div>
 
         {/* Correlation Matrix */}
-        <motion.div className="card">
-          <h2 className="text-xl font-bold text-black mb-4">Factor Correlation</h2>
+        <motion.div className="card border-slate-200 shadow-sm">
+          <h2 className="text-xl font-bold text-slate-900 mb-4">Factor Correlation</h2>
           <div className="h-80 overflow-auto">
             {correlationData?.factors && correlationData.correlation_matrix ? (
               <div className="space-y-1">
@@ -209,8 +209,8 @@ const Analytics = () => {
       </motion.div>
 
       {/* Factor Contribution Chart */}
-      <motion.div variants={itemVariants} className="card">
-        <h2 className="text-xl font-bold text-black mb-4">Risk Factor Contributions</h2>
+      <motion.div variants={itemVariants} className="card border-slate-200 shadow-sm">
+        <h2 className="text-xl font-bold text-slate-900 mb-4">Risk Factor Contributions</h2>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={factorData} layout="vertical">
@@ -229,8 +229,8 @@ const Analytics = () => {
       </motion.div>
 
       {/* Insights Section — Live */}
-      <motion.div variants={itemVariants} className="card">
-        <h2 className="text-xl font-bold text-black mb-6">Key Insights & Recommendations</h2>
+      <motion.div variants={itemVariants} className="card border-slate-200 shadow-sm">
+        <h2 className="text-xl font-bold text-slate-900 mb-6">Key Insights & Recommendations</h2>
         <div className="space-y-4">
           {insights && insights.length > 0 ? (
             insights.map((insight, idx) => (
@@ -246,8 +246,8 @@ const Analytics = () => {
                 <div className="flex items-start gap-3">
                   <div className="w-2 h-2 mt-1.5 rounded-full bg-slate-400 flex-shrink-0"></div>
                   <div>
-                    <p className="font-medium text-black">{insight.title}</p>
-                    <p className="text-sm text-gray-600 mt-1">{insight.description}</p>
+                    <p className="font-bold text-slate-900">{insight.title}</p>
+                    <p className="text-sm text-slate-600 mt-1 leading-relaxed">{insight.description}</p>
                   </div>
                 </div>
               </motion.div>
@@ -262,8 +262,8 @@ const Analytics = () => {
       </motion.div>
 
       {/* Model Performance — from AI engine */}
-      <motion.div variants={itemVariants} className="card">
-        <h2 className="text-xl font-bold text-black mb-6">Model Performance Metrics</h2>
+      <motion.div variants={itemVariants} className="card border-slate-200 shadow-sm">
+        <h2 className="text-xl font-bold text-slate-900 mb-6">Model Performance Metrics</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             { label: 'Accuracy', value: predictions?.modelAccuracy ? `${predictions.modelAccuracy.toFixed(1)}%` : '—' },
@@ -271,9 +271,9 @@ const Analytics = () => {
             { label: 'Active Zones', value: overview?.totalHexes ?? '—' },
             { label: 'Data Sources', value: '8 free APIs' },
           ].map((metric, idx) => (
-            <div key={idx} className="p-4 bg-gray-50 rounded-lg">
-              <p className="text-sm text-gray-600 mb-2">{metric.label}</p>
-              <p className="text-2xl font-bold text-green-600">{metric.value}</p>
+            <div key={idx} className="p-5 bg-slate-50 border border-slate-100 rounded-xl">
+              <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">{metric.label}</p>
+              <p className="text-3xl font-black text-indigo-600">{metric.value}</p>
             </div>
           ))}
         </div>

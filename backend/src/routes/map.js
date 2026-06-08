@@ -1,5 +1,4 @@
 import express from 'express';
-import { auth } from '../middleware/auth.js';
 import {
   getGridForLocation,
   getGridForRadius,
@@ -23,7 +22,7 @@ const DEFAULT_LNG = parseFloat(process.env.DEFAULT_LNG) || 77.5946;
 const DEFAULT_RINGS = parseInt(process.env.H3_RING_SIZE, 10) || getRingsForRadiusKm(getMonitorRadiusKm());
 
 // Get locations with risk data — returns H3 hex grid
-router.get('/locations', auth, async (req, res) => {
+router.get('/locations', async (req, res) => {
   try {
     const lat = parseFloat(req.query.lat) || DEFAULT_LAT;
     const lng = parseFloat(req.query.lng) || DEFAULT_LNG;
@@ -75,7 +74,7 @@ router.get('/locations', auth, async (req, res) => {
 });
 
 // Get heatmap data
-router.get('/heatmap/:region', auth, (req, res) => {
+router.get('/heatmap/:region', (req, res) => {
   try {
     const scores = getCurrentScores();
 
@@ -99,7 +98,7 @@ router.get('/heatmap/:region', auth, (req, res) => {
 });
 
 // Nearby places — Nominatim + Overpass (free)
-router.get('/nearby', auth, async (req, res) => {
+router.get('/nearby', async (req, res) => {
   try {
     const lat = parseFloat(req.query.lat) || DEFAULT_LAT;
     const lng = parseFloat(req.query.lng) || DEFAULT_LNG;
@@ -124,7 +123,7 @@ router.get('/nearby', auth, async (req, res) => {
 });
 
 // Safe route — OSRM + live hex risk scoring
-router.get('/safe-route', auth, async (req, res) => {
+router.get('/safe-route', async (req, res) => {
   try {
     const fromLat = parseFloat(req.query.fromLat);
     const fromLng = parseFloat(req.query.fromLng);
@@ -144,7 +143,7 @@ router.get('/safe-route', auth, async (req, res) => {
 });
 
 // Get detailed data for a single hex
-router.get('/grid/:h3Index', auth, async (req, res) => {
+router.get('/grid/:h3Index', async (req, res) => {
   try {
     const { h3Index } = req.params;
     const score = await computeScoreForHex(h3Index);

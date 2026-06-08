@@ -110,6 +110,7 @@ const Register = () => {
               value={formData.email}
               onChange={handleChange}
               required
+              autoComplete="username"
               className="input-field"
               placeholder="you@example.com"
             />
@@ -124,6 +125,7 @@ const Register = () => {
               value={formData.password}
               onChange={handleChange}
               required
+              autoComplete="new-password"
               className="input-field"
               placeholder="••••••••"
             />
@@ -140,6 +142,7 @@ const Register = () => {
               value={formData.confirmPassword}
               onChange={handleChange}
               required
+              autoComplete="new-password"
               className="input-field"
               placeholder="••••••••"
             />

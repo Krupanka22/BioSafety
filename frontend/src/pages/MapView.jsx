@@ -251,8 +251,8 @@ const MapView = () => {
         {/* Left Side: Map Controls & Layers */}
         <div className="lg:col-span-1 space-y-4 overflow-y-auto pr-2 scrollbar-thin">
           
-          <div className="card bg-slate-50 border-slate-300">
-            <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider border-b border-slate-200 pb-2 mb-3">Map Layers & Filters</h3>
+          <div className="card bg-white border border-slate-200 shadow-sm">
+            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider border-b border-slate-100 pb-2 mb-3">Map Layers & Filters</h3>
             <div className="space-y-3">
               {[
                 { level: 'CRITICAL', color: 'bg-rose-600', label: 'Critical Risk Sectors' },
@@ -277,8 +277,8 @@ const MapView = () => {
             </div>
           </div>
 
-          <div className="card">
-            <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider border-b border-slate-200 pb-2 mb-3">
+          <div className="card bg-white border border-slate-200 shadow-sm">
+            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider border-b border-slate-100 pb-2 mb-3">
               Sector Directory ({locations.length})
             </h3>
             <div className="space-y-1.5 max-h-[300px] overflow-y-auto pr-2 scrollbar-thin">
@@ -293,13 +293,13 @@ const MapView = () => {
                     }}
                     className={`w-full text-left p-2 rounded border transition-colors flex items-center justify-between ${
                       selectedLocation?.h3Index === loc.h3Index
-                        ? 'bg-slate-800 border-slate-900 text-white shadow-inner'
-                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                        ? 'bg-indigo-50 border-indigo-200 text-indigo-900 shadow-sm'
+                        : 'bg-white border-slate-100 text-slate-700 hover:bg-slate-50 hover:border-slate-200'
                     }`}
                   >
                     <div className="flex-1 truncate pr-2">
                       <p className="font-bold text-xs truncate uppercase">{loc.name}</p>
-                      <p className={`text-[10px] font-mono mt-0.5 ${selectedLocation?.h3Index === loc.h3Index ? 'text-slate-300' : 'text-slate-500'}`}>
+                      <p className={`text-[10px] font-mono mt-0.5 ${selectedLocation?.h3Index === loc.h3Index ? 'text-indigo-600' : 'text-slate-500'}`}>
                         {loc.riskLevel} / {loc.riskScore}
                       </p>
                     </div>
@@ -323,8 +323,8 @@ const MapView = () => {
         {/* Right Side: Selected Location Biosafety Panel */}
         <div className="lg:col-span-1 space-y-4 overflow-y-auto pr-2 scrollbar-thin">
           {selectedLocation ? (
-            <div className="card bg-white border-slate-300">
-              <div className="flex items-start justify-between border-b border-slate-200 pb-3 mb-3">
+            <div className="card bg-white border border-slate-200 shadow-sm">
+              <div className="flex items-start justify-between border-b border-slate-100 pb-3 mb-3">
                 <div>
                   <h3 className="text-sm font-black text-slate-900 uppercase truncate pr-2" title={selectedLocation.name}>
                     {selectedLocation.name}

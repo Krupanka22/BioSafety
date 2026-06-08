@@ -1,5 +1,4 @@
 import express from 'express';
-import { auth } from '../middleware/auth.js';
 import { getGridForRadius } from '../services/h3GridEngine.js';
 import { computeScoresForGrid, getOverviewFromScores, getScoreHistory } from '../services/biosafetyScoreEngine.js';
 import { getCurrentScores, getCurrentOverview, getAlerts as getPipelineAlerts, getOrComputeScores } from '../services/realtimePipeline.js';
@@ -14,7 +13,7 @@ const DEFAULT_LAT = parseFloat(process.env.DEFAULT_LAT) || 12.9716;
 const DEFAULT_LNG = parseFloat(process.env.DEFAULT_LNG) || 77.5946;
 
 // Get risk overview — aggregated live scores
-router.get('/risk-overview', auth, async (req, res) => {
+router.get('/risk-overview', async (req, res) => {
   try {
     const lat = parseFloat(req.query.lat) || DEFAULT_LAT;
     const lng = parseFloat(req.query.lng) || DEFAULT_LNG;
@@ -43,7 +42,7 @@ router.get('/risk-overview', auth, async (req, res) => {
 });
 
 // Get exposure score — computed from live AQI + weather
-router.get('/exposure-score', auth, async (req, res) => {
+router.get('/exposure-score', async (req, res) => {
   try {
     const lat = parseFloat(req.query.lat) || DEFAULT_LAT;
     const lng = parseFloat(req.query.lng) || DEFAULT_LNG;
@@ -87,13 +86,13 @@ router.get('/exposure-score', auth, async (req, res) => {
 });
 
 // Get active alerts — from pipeline
-router.get('/alerts', auth, (req, res) => {
+router.get('/alerts', (req, res) => {
   const alerts = getPipelineAlerts();
   res.json(alerts.slice(0, 50));
 });
 
 // Get trends — computed from historical score data
-router.get('/trends', auth, async (req, res) => {
+router.get('/trends', async (req, res) => {
   try {
     const lat = parseFloat(req.query.lat) || DEFAULT_LAT;
     const lng = parseFloat(req.query.lng) || DEFAULT_LNG;
@@ -133,7 +132,7 @@ router.get('/trends', auth, async (req, res) => {
 });
 
 // Get score history + live factor breakdown — for chart and KPI cards
-router.get('/score-history', auth, async (req, res) => {
+router.get('/score-history', async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 60; // last N data points
     
@@ -202,6 +201,37 @@ router.get('/score-history', auth, async (req, res) => {
       hexCount: scores.length,
       timestamp: new Date().toISOString(),
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Search location using Photon via Backend (to avoid frontend CORS/rate limits)
+router.get('/search-location', async (req, res) => {
+  try {
+    const query = req.query.q;
+    if (!query) return res.json([]);
+    
+    // Use Photon API which is much more forgiving than Nominatim
+    const response = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=10`);
+    
+    if (!response.ok) {
+      throw new Error(`Photon returned ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    // Map Photon GeoJSON to the flat format the frontend expects
+    const features = data.features || [];
+    const results = features.map(f => ({
+      place_id: f.properties.osm_id || Math.random(),
+      lat: f.geometry.coordinates[1].toString(),
+      lon: f.geometry.coordinates[0].toString(),
+      display_name: [f.properties.name, f.properties.state, f.properties.country].filter(Boolean).join(', '),
+      name: f.properties.name || 'Unknown Location'
+    }));
+    
+    res.json(results);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

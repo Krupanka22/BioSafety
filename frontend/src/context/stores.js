@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import api from '../services/api';
-import { onSocketEvent, offSocketEvent, isConnected } from '../services/socketService';
+import { onSocketEvent, offSocketEvent, isConnected, subscribeLocation } from '../services/socketService';
 
 /**
  * Dashboard Store — Live biosafety data with Socket.IO real-time updates
@@ -31,11 +31,23 @@ export const useDashboardStore = create((set, get) => ({
    * Fetch dashboard data from REST API
    */
   fetchDashboardData: async (lat, lng) => {
-    set({ loading: true });
+    set({ 
+      loading: true,
+      riskData: null,
+      biosafetyScore: null,
+      aqiData: null,
+      weatherData: null,
+      scoreHistory: [],
+      alerts: []
+    });
     try {
       const params = {};
       if (lat) params.lat = lat;
       if (lng) params.lng = lng;
+
+      if (lat && lng) {
+        subscribeLocation(lat, lng);
+      }
 
       const [risk, score, alerts, trends, history] = await Promise.all([
         api.get('/dashboard/risk-overview', { params }),

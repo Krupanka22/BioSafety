@@ -1,5 +1,4 @@
 import express from 'express';
-import { auth } from '../middleware/auth.js';
 import { getAlerts } from '../services/realtimePipeline.js';
 
 const router = express.Router();
@@ -9,7 +8,7 @@ const router = express.Router();
  */
 
 // Get alerts
-router.get('/', auth, (req, res) => {
+router.get('/', (req, res) => {
   const alerts = getAlerts();
   const limit = parseInt(req.query.limit) || 50;
   const severity = req.query.severity; // optional filter
@@ -23,13 +22,13 @@ router.get('/', auth, (req, res) => {
 });
 
 // Acknowledge an alert (mark as read)
-router.post('/:id/acknowledge', auth, (req, res) => {
+router.post('/:id/acknowledge', (req, res) => {
   const alerts = getAlerts();
   const alert = alerts.find((a) => a.id === req.params.id);
   if (alert) {
     alert.acknowledged = true;
     alert.acknowledgedAt = new Date().toISOString();
-    alert.acknowledgedBy = req.user?.id;
+    alert.acknowledgedBy = 'guest';
     return res.json({ message: 'Alert acknowledged', alert });
   }
   res.status(404).json({ error: 'Alert not found' });

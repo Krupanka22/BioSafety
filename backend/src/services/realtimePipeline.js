@@ -60,8 +60,8 @@ export function initPipeline(socketIo) {
 
       // Trigger a fresh computation for this location
       try {
+        const scores = await getOrComputeScores(lat, lng);
         const grid = getGridForLocation(lat, lng, rings);
-        const scores = await computeScoresForGrid(grid);
         const overview = getOverviewFromScores(scores);
 
         const timestamp = new Date().toISOString();

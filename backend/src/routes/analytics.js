@@ -1,6 +1,5 @@
 import express from 'express';
 import axios from 'axios';
-import { auth } from '../middleware/auth.js';
 import { getCurrentScores, getCurrentOverview } from '../services/realtimePipeline.js';
 import { getAllHistories } from '../services/biosafetyScoreEngine.js';
 import logger from '../utils/logger.js';
@@ -14,7 +13,7 @@ const router = express.Router();
 const AI_ENGINE_URL = process.env.AI_ENGINE_URL || 'http://localhost:5000';
 
 // Get predictions — from AI engine with real historical data
-router.get('/predictions', auth, async (req, res) => {
+router.get('/predictions', async (req, res) => {
   try {
     const histories = getAllHistories();
     const allScores = Object.values(histories).flat();
@@ -88,7 +87,7 @@ router.get('/predictions', auth, async (req, res) => {
 });
 
 // Get historical data — real score history
-router.get('/historical', auth, (req, res) => {
+router.get('/historical', (req, res) => {
   try {
     const days = parseInt(req.query.days) || 30;
     const histories = getAllHistories();
@@ -124,7 +123,7 @@ router.get('/historical', auth, (req, res) => {
 });
 
 // Get correlation analysis
-router.get('/correlation', auth, async (req, res) => {
+router.get('/correlation', async (req, res) => {
   try {
     const scores = getCurrentScores();
     if (scores.length === 0) {
@@ -169,7 +168,7 @@ router.get('/correlation', auth, async (req, res) => {
 });
 
 // Get live insights
-router.get('/insights', auth, (req, res) => {
+router.get('/insights', (req, res) => {
   try {
     const scores = getCurrentScores();
     const overview = getCurrentOverview();

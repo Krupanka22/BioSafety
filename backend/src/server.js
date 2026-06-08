@@ -8,7 +8,6 @@ import { Server as SocketIO } from 'socket.io';
 import errorHandler from './middleware/errorHandler.js';
 import alertsRoutes from './routes/alerts.js';
 import analyticsRoutes from './routes/analytics.js';
-import authRoutes from './routes/auth.js';
 import dashboardRoutes from './routes/dashboard.js';
 import independentMonitoringRoutes from './routes/independentMonitoring.js';
 import mapRoutes from './routes/map.js';
@@ -51,7 +50,6 @@ app.use((req, res, next) => {
 });
 
 // API Routes
-app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/map', mapRoutes);
 app.use('/api/analytics', analyticsRoutes);

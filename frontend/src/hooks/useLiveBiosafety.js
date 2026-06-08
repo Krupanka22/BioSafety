@@ -28,6 +28,7 @@ export function useLiveBiosafety({ rings = null, watch = true } = {}) {
   return {
     lat,
     lng,
+    name: searchLocation?.name,
     geoLoading: geo.loading,
     geoError: geo.error,
     accuracy: geo.accuracy,

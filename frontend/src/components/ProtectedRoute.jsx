@@ -1,18 +1,11 @@
-import { Navigate, Outlet } from 'react-router-dom';
-import { useAuthStore } from '../context/authContext';
+import { Outlet } from 'react-router-dom';
 import Navbar from './Navbar';
 import Sidebar from './Sidebar';
 
 /**
- * ProtectedRoute Component - Wraps protected routes with auth check and layout
+ * Layout Component - Wraps routes with standard layout
  */
-const ProtectedRoute = () => {
-  const { isAuthenticated } = useAuthStore();
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
+const Layout = () => {
   return (
     <div className="flex h-screen bg-white overflow-hidden">
       {/* Sidebar Navigation */}
@@ -34,4 +27,4 @@ const ProtectedRoute = () => {
   );
 };
 
-export default ProtectedRoute;
+export default Layout;

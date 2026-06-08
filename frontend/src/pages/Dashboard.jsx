@@ -14,7 +14,7 @@ const Dashboard = () => {
     initSocketListeners, cleanupSocketListeners,
   } = useDashboardStore();
 
-  const { lat, lng } = useLiveBiosafety({ watch: true });
+  const { lat, lng, name } = useLiveBiosafety({ watch: true });
 
   useEffect(() => {
     initSocketListeners();
@@ -65,8 +65,8 @@ const Dashboard = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-4 border-b border-slate-200">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Environmental Dashboard</h1>
-          <p className="text-sm text-slate-500 mt-1 uppercase tracking-wider">Coordinates: {lat?.toFixed(5)}, {lng?.toFixed(5)}</p>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{name ? name.split(',')[0] : 'Environmental Dashboard'}</h1>
+          <p className="text-sm text-slate-500 mt-1 uppercase tracking-wider">{name ? name : `Coordinates: ${lat?.toFixed(5)}, ${lng?.toFixed(5)}`}</p>
         </div>
         <div className="flex flex-col items-end">
           <div className="flex items-center gap-2">
@@ -86,7 +86,7 @@ const Dashboard = () => {
       {/* Primary Telemetry Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Risk Score */}
-        <div className="card border-t-4 border-t-slate-800">
+        <div className="card border-t-4 border-t-indigo-600">
           <div className="card-header">
             <span className="metric-label">System Risk Score</span>
             <span className={`badge ${getBadgeClass(currentLevel)} uppercase`}>{currentLevel}</span>
@@ -97,7 +97,7 @@ const Dashboard = () => {
             </p>
             <p className="text-xs text-slate-500 font-mono mb-1">Scale: 0-100</p>
           </div>
-          <div className="w-full bg-slate-100 rounded-sm h-1.5 mt-4 overflow-hidden">
+          <div className="w-full bg-slate-100 rounded-lg h-1.5 mt-4 overflow-hidden shadow-inner">
             <div
               className={`h-full transition-all duration-1000 ${
                 currentLevel === 'CRITICAL' ? 'bg-rose-500' :
@@ -113,7 +113,7 @@ const Dashboard = () => {
         <div className="card">
           <div className="card-header">
             <span className="metric-label">Air Quality Index</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.6)]"></span>
           </div>
           <p className={`text-3xl font-bold ${
             (aqiData?.raw || 0) > 200 ? 'text-rose-600' :
@@ -138,7 +138,7 @@ const Dashboard = () => {
         <div className="card">
           <div className="card-header">
             <span className="metric-label">Crowd Density</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+            <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 shadow-[0_0_8px_rgba(129,140,248,0.6)]"></span>
           </div>
           <div className="flex items-end gap-2">
             <p className="text-3xl font-bold text-slate-800">
@@ -155,7 +155,7 @@ const Dashboard = () => {
         <div className="card">
           <div className="card-header">
             <span className="metric-label">Weather Intelligence</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.6)]"></span>
           </div>
           <div className="flex items-center gap-4">
             <p className="text-3xl font-bold text-slate-800">
@@ -192,18 +192,18 @@ const Dashboard = () => {
               <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#334155" stopOpacity={0.2}/>
-                    <stop offset="95%" stopColor="#334155" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#4f46e5" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis dataKey="time" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} dy={10} />
                 <YAxis domain={[0, 100]} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} />
                 <Tooltip 
-                  contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderRadius: '4px', fontSize: '12px' }}
+                  contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderRadius: '8px', fontSize: '12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
                   itemStyle={{ color: '#0f172a', fontWeight: '600' }}
                 />
-                <Area type="monotone" dataKey="score" stroke="#334155" strokeWidth={2} fillOpacity={1} fill="url(#colorScore)" />
+                <Area type="monotone" dataKey="score" stroke="#4f46e5" strokeWidth={3} fillOpacity={1} fill="url(#colorScore)" />
               </AreaChart>
             </ResponsiveContainer>
             ) : (
@@ -224,10 +224,10 @@ const Dashboard = () => {
               {alerts?.length || 0} ACTIVE
             </span>
           </div>
-          <div className="flex-1 overflow-y-auto max-h-[250px] space-y-2 pr-2 scrollbar-thin">
+          <div className="flex-1 overflow-y-auto max-h-[250px] space-y-3 pr-2 scrollbar-thin">
             {alerts && alerts.length > 0 ? (
               alerts.slice(0, 8).map((alert, idx) => (
-                <div key={alert.id || idx} className={`p-3 rounded-sm border-l-4 text-sm ${
+                <div key={alert.id || idx} className={`p-4 rounded-xl border-l-4 shadow-sm text-sm ${
                   alert.severity === 'critical' ? 'bg-rose-50 border-rose-500' :
                   alert.severity === 'high' ? 'bg-orange-50 border-orange-500' :
                   'bg-slate-50 border-slate-400'
@@ -256,12 +256,12 @@ const Dashboard = () => {
             <span className="metric-label">Regional Infrastructure State</span>
             <span className="text-xs font-mono text-slate-500 uppercase">Sector: {overview.totalHexes} Hex Cells</span>
           </div>
-          <div className="grid grid-cols-4 gap-px bg-slate-200 border border-slate-200 rounded-sm overflow-hidden">
-            <div className="bg-white p-3 text-center">
+          <div className="grid grid-cols-4 gap-px bg-slate-200 border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+            <div className="bg-white p-4 text-center">
               <p className="text-xl font-black text-emerald-600">{overview.lowCount || 0}</p>
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-1">Low Risk</p>
             </div>
-            <div className="bg-white p-3 text-center">
+            <div className="bg-white p-4 text-center">
               <p className="text-xl font-black text-amber-600">{overview.moderateCount || 0}</p>
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-1">Moderate</p>
             </div>
@@ -269,7 +269,7 @@ const Dashboard = () => {
               <p className="text-xl font-black text-orange-600">{overview.highCount || 0}</p>
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-1">High Risk</p>
             </div>
-            <div className="bg-white p-3 text-center">
+            <div className="bg-white p-4 text-center">
               <p className="text-xl font-black text-rose-600">{overview.criticalCount || 0}</p>
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-1">Critical</p>
             </div>

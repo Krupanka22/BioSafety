@@ -2,10 +2,6 @@
 # Prerequisites: Node.js, Python, PostgreSQL must already be installed
 # This script ONLY configures .env files and database
 
-param(
-    [string]$PostgresUser = "postgres",
-    [string]$PostgresPassword = "postgres"
-)
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Cyan
@@ -41,34 +37,6 @@ if (-not (Test-Path "ai-engine\.env")) {
 
 Write-Host ""
 
-# STEP 2: Configure Database
-Write-Host "STEP 2: Setting up PostgreSQL database..." -ForegroundColor Green
-Write-Host "========================================" -ForegroundColor Cyan
-Write-Host ""
-
-# Set password
-$env:PGPASSWORD = $PostgresPassword
-
-# Create database
-Write-Host "Creating database: biosafety_db" -ForegroundColor Cyan
-createdb -U $PostgresUser biosafety_db 2>$null
-Write-Host "✅ Database created (or already exists)" -ForegroundColor Green
-
-# Load schema
-Write-Host ""
-Write-Host "Loading database schema..." -ForegroundColor Cyan
-psql -U $PostgresUser -d biosafety_db -f database/schema.sql
-Write-Host "✅ Schema loaded" -ForegroundColor Green
-
-# Seed data
-Write-Host ""
-Write-Host "Seeding sample data..." -ForegroundColor Cyan
-psql -U $PostgresUser -d biosafety_db -f database/seeds.sql
-Write-Host "✅ Sample data inserted" -ForegroundColor Green
-
-$env:PGPASSWORD = ""
-
-Write-Host ""
 
 # STEP 3: Summary
 Write-Host "========================================" -ForegroundColor Green
@@ -78,9 +46,7 @@ Write-Host ""
 
 Write-Host "Next Steps:" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "1. ✏️  Edit backend/.env with your PostgreSQL password:" -ForegroundColor Yellow
-Write-Host "   DB_PASSWORD=your_password_here" -ForegroundColor Gray
-Write-Host ""
+
 Write-Host "2. 📦 Install npm dependencies:" -ForegroundColor Yellow
 Write-Host "   cd frontend && npm install" -ForegroundColor Gray
 Write-Host "   cd backend && npm install" -ForegroundColor Gray
